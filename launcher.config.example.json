@@ -21,6 +21,6 @@
     "checkBeforeBackendStart": true,
     "forceBackendStartIfMongoFails": false
   },
-  "npmScripts": { "backend": "dev", "cocina": "start", "expo": "start" },
+  "npmScripts": { "backend": "start", "cocina": "start", "expo": "start" },
   "stopAllOnQuit": true
 }

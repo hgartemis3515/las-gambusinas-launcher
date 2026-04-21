@@ -53,7 +53,8 @@ function defaultConfig() {
     dataManifestPath: 'data/data.json',
     showFirstRunWizard: true,
     npmScripts: {
-      backend: 'dev',
+      /** `start` = node sin reinicios por archivos en data/. Use `dev` (nodemon) solo para desarrollo activo. */
+      backend: 'start',
       cocina: 'start',
       expo: 'start',
     },

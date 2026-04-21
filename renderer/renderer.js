@@ -52,7 +52,7 @@ function readConfigFromForm() {
       mozos: $('clone-url-mozos').value.trim(),
     },
     npmScripts: {
-      backend: $('npm-backend').value.trim() || 'dev',
+      backend: $('npm-backend').value.trim() || 'start',
       cocina: $('npm-cocina').value.trim() || 'start',
       expo: $('npm-expo').value.trim() || 'start',
     },
@@ -86,7 +86,7 @@ async function fillForm(cfg) {
   $('clone-url-backend').value = cfg.cloneUrls?.backend || '';
   $('clone-url-cocina').value = cfg.cloneUrls?.cocina || '';
   $('clone-url-mozos').value = cfg.cloneUrls?.mozos || '';
-  $('npm-backend').value = cfg.npmScripts?.backend || 'dev';
+  $('npm-backend').value = cfg.npmScripts?.backend || 'start';
   $('npm-cocina').value = cfg.npmScripts?.cocina || 'start';
   $('npm-expo').value = cfg.npmScripts?.expo || 'start';
   $('cfg-autostart-win').checked = !!cfg.autoStartLauncherWithWindows;

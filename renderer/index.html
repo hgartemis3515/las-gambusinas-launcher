@@ -157,6 +157,13 @@
         <section id="section-servicios" class="section hidden">
           <div class="panel">
             <h2>Procesos (npm)</h2>
+            <p class="hint">
+              <strong>Backend:</strong> por defecto se usa <code>npm run start</code> (Node estable). Con
+              <code>npm run dev</code> (nodemon) el servidor puede reiniciarse muchas veces al inicio porque el propio
+              backend escribe en <code>data/*.json</code> y nodemon interpreta “cambios”. En Avanzado puede dejar
+              <code>dev</code> si necesita recarga al editar código; el repo ya incluye <code>nodemon.json</code> que
+              limita la vigilancia a <code>index.js</code> y <code>src/</code>.
+            </p>
             <div class="services" id="services-row"></div>
           </div>
         </section>
@@ -226,8 +233,8 @@
             <h2>Scripts npm</h2>
             <div class="field-row three">
               <div class="field">
-                <label>npm backend</label>
-                <input type="text" id="npm-backend" placeholder="dev" />
+                <label>npm backend (recomendado: start)</label>
+                <input type="text" id="npm-backend" placeholder="start" />
               </div>
               <div class="field">
                 <label>npm cocina</label>

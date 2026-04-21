@@ -84,7 +84,7 @@ async function runAutoStartServices() {
 
   const b = pm.start('backend', {
     cwd: cfg.paths.backend,
-    npmScript: cfg.npmScripts?.backend || 'dev',
+    npmScript: cfg.npmScripts?.backend || 'start',
   });
   if (!b.ok) return;
 
@@ -200,7 +200,7 @@ ipcMain.handle('autostart-get', () => ({
 ipcMain.handle('service-start', (_e, service) => {
   const cfg = loadConfig();
   if (service === 'backend') {
-    return pm.start('backend', { cwd: cfg.paths.backend, npmScript: cfg.npmScripts?.backend || 'dev' });
+    return pm.start('backend', { cwd: cfg.paths.backend, npmScript: cfg.npmScripts?.backend || 'start' });
   }
   if (service === 'cocina') {
     return pm.start('cocina', { cwd: cfg.paths.cocina, npmScript: cfg.npmScripts?.cocina || 'start' });

@@ -33,6 +33,8 @@ Panel tipo **dashboard** con **barra lateral**: Resumen, Rutas e instalación (d
 
 Las URLs en `cloneUrls` son plantillas (`hgartemis3515/...`); cámbialas en la UI o en `launcher-config.json` si tus repos tienen otro nombre o son privados (necesitarás credenciales Git configuradas).
 
+**Backend y reinicios:** el launcher usa por defecto `npm run start` (sin nodemon). Si usas `dev`, nodemon puede reiniciar al escribir `data/*.json`; el backend incluye `nodemon.json` que solo vigila `index.js` y `src/`.
+
 ## Uso en desarrollo
 
 Desde la carpeta `launcher/`:
