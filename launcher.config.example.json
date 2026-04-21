@@ -1,0 +1,20 @@
+{
+  "paths": {
+    "backend": "E:\\PROYECTOGAMBUSINAS\\Backend-LasGambusinas",
+    "cocina": "E:\\PROYECTOGAMBUSINAS\\appcocina",
+    "mozos": "E:\\PROYECTOGAMBUSINAS\\Las-Gambusinas"
+  },
+  "ports": { "backend": 3000, "cocina": 3001, "expoMetro": 8081 },
+  "publicBaseUrl": "http://127.0.0.1:3000",
+  "dataManifestPath": "data/data.json",
+  "autoStartLauncherWithWindows": false,
+  "autoStartServicesOnLauncherOpen": false,
+  "autoStartExpoWithServices": false,
+  "delaysMs": { "afterBoot": 3000, "betweenServiceStarts": 2000 },
+  "mongodb": {
+    "checkBeforeBackendStart": true,
+    "forceBackendStartIfMongoFails": false
+  },
+  "npmScripts": { "backend": "dev", "cocina": "start", "expo": "start" },
+  "stopAllOnQuit": true
+}

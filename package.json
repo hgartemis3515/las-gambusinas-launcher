@@ -1,0 +1,38 @@
+{
+  "name": "las-gambusinas-launcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Panel nativo Windows: Backend, Cocina, Mozos (Expo), MongoDB, Git y datos data/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hgartemis3515/las-gambusinas-launcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hgartemis3515/las-gambusinas-launcher/issues"
+  },
+  "homepage": "https://github.com/hgartemis3515/las-gambusinas-launcher#readme",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "mongoose": "^8.1.3",
+    "tree-kill": "^1.2.2"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.lasgambusinas.launcher",
+    "productName": "Las Gambusinas Launcher",
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "renderer/**/*", "package.json"],
+    "extraResources": [{ "from": "scripts", "to": "scripts" }],
+    "win": {
+      "target": ["nsis"]
+    }
+  }
+}

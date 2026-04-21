@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Las Gambusinas — Launcher</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="wizard" class="overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal">
+        <h2>Primera configuración</h2>
+        <p>Revise rutas, MongoDB y carpeta <code>data/</code>. Puede marcar esta introducción como completada cuando esté listo.</p>
+        <ul class="wiz-list">
+          <li>Si existe <code>data/data.json</code> (manifiesto), verá una alerta para evaluar restablecer datos.</li>
+          <li>Sin manifiesto: estado coherente con instalación limpia (los demás JSON de semilla no son el mismo criterio).</li>
+          <li>Borrar JSON <strong>no vacía MongoDB</strong>; el negocio vive en la base de datos.</li>
+        </ul>
+        <label class="check"><input type="checkbox" id="wiz-hide" /> No volver a mostrar (usa preferencia en config)</label>
+        <div class="modal-actions">
+          <button type="button" id="wiz-done" class="primary">Marcar como completado</button>
+        </div>
+      </div>
+    </div>
+
+    <header class="header">
+      <h1>Las Gambusinas — Launcher</h1>
+      <div class="header-actions">
+        <button type="button" id="btn-refresh" class="ghost">Actualizar estados</button>
+        <button type="button" id="btn-save-config" class="primary">Guardar configuración</button>
+      </div>
+    </header>
+
+    <div id="banner-manifest" class="banner banner-warn hidden"></div>
+    <div id="banner-json" class="banner banner-info hidden"></div>
+    <div id="banner-clean" class="banner banner-ok hidden"></div>
+
+    <section class="panel">
+      <h2>MongoDB y aplicaciones (HTTP)</h2>
+      <div class="grid-4" id="status-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Servicios (procesos)</h2>
+      <div class="services" id="services-row"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Enlaces rápidos</h2>
+      <div class="links">
+        <button type="button" class="ghost" data-open="cocina">Abrir cocina</button>
+        <button type="button" class="ghost" data-open="admin">Abrir /admin</button>
+        <button type="button" class="ghost" data-open="root">Abrir backend /</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Repositorios (Git)</h2>
+      <div class="git-grid" id="git-grid"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Datos JSON en backend</h2>
+      <p class="hint">Manifiesto configurado: <code id="manifest-label"></code></p>
+      <div class="row">
+        <button type="button" id="btn-open-data" class="ghost">Abrir carpeta data</button>
+        <button type="button" id="btn-delete-manifest" class="danger">Eliminar manifiesto (data.json)</button>
+      </div>
+      <ul id="data-file-list" class="file-list"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>App mozos — APK (EAS)</h2>
+      <p class="hint">Requiere <code>eas login</code> y token/permisos. No cierre el launcher durante el build.</p>
+      <div class="row">
+        <button type="button" id="eas-preview" class="ghost">Build Android — perfil preview</button>
+        <button type="button" id="eas-prod" class="ghost">Build Android — perfil production</button>
+      </div>
+    </section>
+
+    <section class="panel collapsible">
+      <h2><button type="button" class="collapse-toggle" id="toggle-config">Configuración ▾</button></h2>
+      <div id="config-body" class="config-body hidden">
+        <div class="field">
+          <label>Ruta backend</label>
+          <input type="text" id="path-backend" />
+        </div>
+        <div class="field">
+          <label>Ruta app cocina</label>
+          <input type="text" id="path-cocina" />
+        </div>
+        <div class="field">
+          <label>Ruta app mozos (Expo)</label>
+          <input type="text" id="path-mozos" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Puerto backend</label>
+            <input type="number" id="port-backend" />
+          </div>
+          <div class="field">
+            <label>Puerto cocina</label>
+            <input type="number" id="port-cocina" />
+          </div>
+          <div class="field">
+            <label>Puerto Metro (referencia)</label>
+            <input type="number" id="port-expo" />
+          </div>
+        </div>
+        <div class="field">
+          <label>URL base (admin / enlaces)</label>
+          <input type="text" id="public-base-url" />
+        </div>
+        <div class="field">
+          <label>Ruta manifiesto datos (relativa al backend)</label>
+          <input type="text" id="data-manifest-path" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>npm backend</label>
+            <input type="text" id="npm-backend" placeholder="dev" />
+          </div>
+          <div class="field">
+            <label>npm cocina</label>
+            <input type="text" id="npm-cocina" placeholder="start" />
+          </div>
+          <div class="field">
+            <label>npm Expo</label>
+            <input type="text" id="npm-expo" placeholder="start" />
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="check"><input type="checkbox" id="cfg-autostart-win" /> Iniciar launcher con Windows (acceso directo en Inicio)</label>
+        </div>
+        <div class="field-row">
+          <label class="check"><input type="checkbox" id="cfg-autostart-svc" /> Al abrir el launcher, iniciar backend y cocina</label>
+        </div>
+        <div class="field-row">
+          <label class="check"><input type="checkbox" id="cfg-autostart-expo" /> También iniciar Expo (mozos)</label>
+        </div>
+        <div class="field-row">
+          <label class="check"><input type="checkbox" id="cfg-mongo-check" /> Comprobar MongoDB antes de auto-iniciar backend</label>
+        </div>
+        <div class="field-row">
+          <label class="check"><input type="checkbox" id="cfg-mongo-force" /> Forzar backend si MongoDB falla (solo diagnóstico)</label>
+        </div>
+        <div class="field-row">
+          <label class="check"><input type="checkbox" id="cfg-stop-quit" /> Al cerrar launcher, detener servicios</label>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Retraso auto-inicio (ms)</label>
+            <input type="number" id="delay-boot" />
+          </div>
+          <div class="field">
+            <label>Entre servicios (ms)</label>
+            <input type="number" id="delay-between" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Registro</h2>
+      <textarea id="log-area" readonly rows="14"></textarea>
+    </section>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
