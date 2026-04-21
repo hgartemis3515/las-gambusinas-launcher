@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
 const { loadConfig, saveConfig, loadState, saveState } = require('./lib/config-store');
 const { ProcessManager } = require('./lib/process-manager');
@@ -7,6 +7,10 @@ const { appsStatus } = require('./lib/http-status');
 const { gitStatus, runGit } = require('./lib/git-service');
 const { listJsonFiles, deleteManifest } = require('./lib/data-service');
 const { setWindowsAutostart, isAutostartEnabled } = require('./lib/autostart-win');
+const { detectMonorepoRoot, repoLocalStatus, FOLDER_BACKEND, FOLDER_COCINA, FOLDER_MOZOS } = require('./lib/path-detector');
+const { gitClone } = require('./lib/clone-service');
+const { gitCheckUpdates } = require('./lib/git-updates');
+const { getMonorepoRoot } = require('./lib/paths');
 
 /** Carpeta del proyecto launcher (desarrollo) o carpeta del .exe instalado (producción). */
 function getLauncherRoot() {
@@ -313,3 +317,121 @@ ipcMain.handle('eas-build', (_e, profile) => {
 ipcMain.handle('get-paths-hint', () => ({
   launcherRoot: getLauncherRoot(),
 }));
+
+ipcMain.handle('paths-auto-detect', () => {
+  return detectMonorepoRoot({ exeDir: path.dirname(process.execPath) });
+});
+
+ipcMain.handle('paths-apply-detect', () => {
+  const d = detectMonorepoRoot({ exeDir: path.dirname(process.execPath) });
+  if (!d.ok) return { ok: false, ...d };
+  const cfg = loadConfig();
+  const next = {
+    ...cfg,
+    paths: { ...cfg.paths, ...d.paths },
+    cloneParentDir: d.root,
+  };
+  saveConfig(next);
+  syncAutostartShortcut(next);
+  return { ok: true, ...d };
+});
+
+ipcMain.handle('repos-local-status', () => {
+  const cfg = loadConfig();
+  return {
+    backend: repoLocalStatus(cfg.paths?.backend),
+    cocina: repoLocalStatus(cfg.paths?.cocina),
+    mozos: repoLocalStatus(cfg.paths?.mozos),
+  };
+});
+
+ipcMain.handle('pick-directory', async () => {
+  if (!mainWindow) return null;
+  const r = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (r.canceled || !r.filePaths?.length) return null;
+  return r.filePaths[0];
+});
+
+ipcMain.handle('git-clone-repo', async (_e, { repoKey, parentDir }) => {
+  const cfg = loadConfig();
+  const fs = require('fs');
+  const urls = cfg.cloneUrls || {};
+  const url = urls[repoKey];
+  if (!url) return { ok: false, error: 'Sin URL en cloneUrls para ' + repoKey };
+  const folderMap = { backend: FOLDER_BACKEND, cocina: FOLDER_COCINA, mozos: FOLDER_MOZOS };
+  const folder = folderMap[repoKey];
+  if (!folder) return { ok: false, error: 'repoKey inválido' };
+  let parent = parentDir || cfg.cloneParentDir;
+  if (!parent) parent = getMonorepoRoot();
+  try {
+    fs.mkdirSync(parent, { recursive: true });
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  const onLine = (line) =>
+    pushLog({ service: 'git', line: `[clone ${repoKey}] ${line}`, ts: Date.now() });
+  const r = await gitClone(url, parent, folder, onLine);
+  if (r.ok) {
+    const next = {
+      ...cfg,
+      paths: { ...cfg.paths, [repoKey]: r.dest },
+      cloneParentDir: parent,
+    };
+    saveConfig(next);
+    syncAutostartShortcut(next);
+  }
+  return r;
+});
+
+ipcMain.handle('repos-clone-all', async (_e, explicitParent) => {
+  const cfg = loadConfig();
+  const fs = require('fs');
+  let parent = explicitParent || cfg.cloneParentDir;
+  if (!parent) parent = getMonorepoRoot();
+  try {
+    fs.mkdirSync(parent, { recursive: true });
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  const map = [
+    { key: 'backend', folder: FOLDER_BACKEND },
+    { key: 'cocina', folder: FOLDER_COCINA },
+    { key: 'mozos', folder: FOLDER_MOZOS },
+  ];
+  const results = [];
+  for (const { key, folder } of map) {
+    const dest = path.join(parent, folder);
+    if (fs.existsSync(path.join(dest, 'package.json'))) {
+      results.push({ key, skipped: true, dest });
+      continue;
+    }
+    const url = (cfg.cloneUrls || {})[key];
+    if (!url) {
+      results.push({ key, ok: false, error: 'sin URL' });
+      continue;
+    }
+    const r = await gitClone(url, parent, folder, (line) =>
+      pushLog({ service: 'git', line: `[clone ${key}] ${line}`, ts: Date.now() }),
+    );
+    results.push({ key, ...r });
+  }
+  const newPaths = { ...cfg.paths };
+  for (const { key, folder } of map) {
+    const dest = path.join(parent, folder);
+    if (fs.existsSync(path.join(dest, 'package.json'))) {
+      newPaths[key] = dest;
+    }
+  }
+  const next = { ...cfg, paths: newPaths, cloneParentDir: parent };
+  saveConfig(next);
+  syncAutostartShortcut(next);
+  return { ok: true, results, paths: newPaths };
+});
+
+ipcMain.handle('git-check-updates', async (_e, repoKey) => {
+  const cfg = loadConfig();
+  const dir = cfg.paths[repoKey];
+  return gitCheckUpdates(dir, cfg.git?.executable || 'git');
+});

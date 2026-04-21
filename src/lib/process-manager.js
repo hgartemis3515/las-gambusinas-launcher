@@ -1,5 +1,7 @@
 const { spawn } = require('child_process');
 const EventEmitter = require('events');
+const fs = require('fs');
+const path = require('path');
 const treeKill = require('tree-kill');
 
 const SERVICES = ['backend', 'cocina', 'expo'];
@@ -22,7 +24,14 @@ class ProcessManager extends EventEmitter {
       return { ok: false, error: 'already_running' };
     }
     const { cwd, npmScript } = opts;
+    const resolved = cwd ? path.resolve(cwd) : '';
+    if (!resolved || !fs.existsSync(resolved)) {
+      const msg = `[launcher] ${service}: la carpeta no existe: ${cwd || '(vacía)'}`;
+      this.emit('log', { service, line: msg, ts: Date.now() });
+      return { ok: false, error: 'cwd_missing' };
+    }
     const proc = spawn('npm', ['run', npmScript], {
+      cwd: resolved,
       cwd,
       shell: true,
       env: { ...process.env, FORCE_COLOR: '0' },
@@ -53,7 +62,7 @@ class ProcessManager extends EventEmitter {
       this.emit('exit', { service, code });
     });
 
-    this.emit('log', { service, line: `[launcher] iniciado npm run ${npmScript} en ${cwd}`, ts: Date.now() });
+    this.emit('log', { service, line: `[launcher] iniciado npm run ${npmScript} en ${resolved}`, ts: Date.now() });
     return { ok: true, pid: proc.pid };
   }
 

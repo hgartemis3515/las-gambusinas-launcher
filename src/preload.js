@@ -17,6 +17,14 @@ contextBridge.exposeInMainWorld('launcherAPI', {
   gitStatus: (repoKey) => ipcRenderer.invoke('git-status', repoKey),
   gitFetch: (repoKey) => ipcRenderer.invoke('git-fetch', repoKey),
   gitPull: (repoKey) => ipcRenderer.invoke('git-pull', repoKey),
+  gitCheckUpdates: (repoKey) => ipcRenderer.invoke('git-check-updates', repoKey),
+
+  pathsAutoDetect: () => ipcRenderer.invoke('paths-auto-detect'),
+  pathsApplyDetect: () => ipcRenderer.invoke('paths-apply-detect'),
+  reposLocalStatus: () => ipcRenderer.invoke('repos-local-status'),
+  pickDirectory: () => ipcRenderer.invoke('pick-directory'),
+  gitCloneRepo: (payload) => ipcRenderer.invoke('git-clone-repo', payload),
+  reposCloneAll: (parentDir) => ipcRenderer.invoke('repos-clone-all', parentDir),
 
   dataList: () => ipcRenderer.invoke('data-list'),
   dataDeleteManifest: () => ipcRenderer.invoke('data-delete-manifest'),

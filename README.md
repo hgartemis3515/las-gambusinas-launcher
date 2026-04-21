@@ -27,6 +27,12 @@ Si el monorepo padre ya es un repo Git y `launcher` aparece como carpeta sin seg
 - MongoDB accesible según el `.env` del backend (`DBLOCAL` o `MONGODB_URI`).
 - Para APK: cuenta Expo y `eas login` en la máquina; variable `EXPO_TOKEN` si se usa CI.
 
+## Interfaz
+
+Panel tipo **dashboard** con **barra lateral**: Resumen, Rutas e instalación (detección automática del monorepo, clonado Git), Servicios, Git y actualizaciones (`fetch` + commits detrás del remoto), Datos JSON, Mozos (APK), Avanzado y Registro.
+
+Las URLs en `cloneUrls` son plantillas (`hgartemis3515/...`); cámbialas en la UI o en `launcher-config.json` si tus repos tienen otro nombre o son privados (necesitarás credenciales Git configuradas).
+
 ## Uso en desarrollo
 
 Desde la carpeta `launcher/`:

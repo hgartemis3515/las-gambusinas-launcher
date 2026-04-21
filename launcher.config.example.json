@@ -4,6 +4,12 @@
     "cocina": "E:\\PROYECTOGAMBUSINAS\\appcocina",
     "mozos": "E:\\PROYECTOGAMBUSINAS\\Las-Gambusinas"
   },
+  "cloneParentDir": "E:\\PROYECTOGAMBUSINAS",
+  "cloneUrls": {
+    "backend": "https://github.com/hgartemis3515/Backend-LasGambusinas.git",
+    "cocina": "https://github.com/hgartemis3515/appcocina.git",
+    "mozos": "https://github.com/hgartemis3515/Las-Gambusinas.git"
+  },
   "ports": { "backend": 3000, "cocina": 3001, "expoMetro": 8081 },
   "publicBaseUrl": "http://127.0.0.1:3000",
   "dataManifestPath": "data/data.json",

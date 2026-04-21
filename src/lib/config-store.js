@@ -42,6 +42,14 @@ function defaultConfig() {
       mongoshPath: 'mongosh',
     },
     git: { executable: 'git' },
+    /** Carpeta padre donde se clonan las tres carpetas (si está vacío, se usa la raíz del monorepo detectada). */
+    cloneParentDir: '',
+    /** URLs Git públicas (editar si tus repos tienen otro nombre o son privados). */
+    cloneUrls: {
+      backend: 'https://github.com/hgartemis3515/Backend-LasGambusinas.git',
+      cocina: 'https://github.com/hgartemis3515/appcocina.git',
+      mozos: 'https://github.com/hgartemis3515/Las-Gambusinas.git',
+    },
     dataManifestPath: 'data/data.json',
     showFirstRunWizard: true,
     npmScripts: {
@@ -74,6 +82,11 @@ function loadConfig() {
       mongodb: { ...def.mongodb, ...(parsed.mongodb || {}) },
       npmScripts: { ...def.npmScripts, ...(parsed.npmScripts || {}) },
       git: { ...def.git, ...(parsed.git || {}) },
+      cloneUrls: { ...def.cloneUrls, ...(parsed.cloneUrls || {}) },
+      cloneParentDir:
+        parsed.cloneParentDir !== undefined && parsed.cloneParentDir !== null
+          ? parsed.cloneParentDir
+          : def.cloneParentDir,
     };
   } catch {
     return defaultConfig();
