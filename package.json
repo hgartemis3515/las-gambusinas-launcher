@@ -2,6 +2,7 @@
   "name": "las-gambusinas-launcher",
   "version": "1.0.0",
   "private": true,
+  "author": "hgartemis3515",
   "description": "Panel nativo Windows: Backend, Cocina, Mozos (Expo), MongoDB, Git y datos data/",
   "repository": {
     "type": "git",
@@ -29,10 +30,22 @@
     "appId": "com.lasgambusinas.launcher",
     "productName": "Las Gambusinas Launcher",
     "directories": { "output": "dist" },
-    "files": ["src/**/*", "renderer/**/*", "package.json"],
+    "files": ["src/**/*", "renderer/**/*", "package.json", "package-lock.json"],
     "extraResources": [{ "from": "scripts", "to": "scripts" }],
+    "asar": true,
     "win": {
-      "target": ["nsis"]
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerLanguages": ["es_ES", "en_US"]
     }
   }
 }

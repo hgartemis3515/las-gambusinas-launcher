@@ -8,8 +8,11 @@ const { gitStatus, runGit } = require('./lib/git-service');
 const { listJsonFiles, deleteManifest } = require('./lib/data-service');
 const { setWindowsAutostart, isAutostartEnabled } = require('./lib/autostart-win');
 
-/** Directorio raíz del proyecto launcher (…/launcher) */
+/** Carpeta del proyecto launcher (desarrollo) o carpeta del .exe instalado (producción). */
 function getLauncherRoot() {
+  if (app.isPackaged) {
+    return path.dirname(process.execPath);
+  }
   return path.join(__dirname, '..');
 }
 
@@ -116,7 +119,8 @@ function createWindow() {
     title: 'Las Gambusinas — Launcher',
   });
 
-  mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  const rendererIndex = path.join(app.getAppPath(), 'renderer', 'index.html');
+  mainWindow.loadFile(rendererIndex);
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
   mainWindow.webContents.once('did-finish-load', () => {

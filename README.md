@@ -38,13 +38,28 @@ npm start
 
 La configuración se guarda en `%APPDATA%\LasGambusinas\launcher-config.json`. El estado del asistente inicial en `launcher-state.json` en la misma carpeta.
 
-## Empaquetar `.exe`
+## Empaquetar `.exe` (Windows x64)
 
 ```bash
 npm run dist
 ```
 
-Salida en `launcher/dist/`. El script `scripts/create-shortcut.ps1` se copia a recursos extra para crear el acceso directo de inicio de Windows.
+Salida en `launcher/dist/`:
+
+| Archivo | Uso |
+|---------|-----|
+| **`Las Gambusinas Launcher Setup 1.0.0.exe`** | Instalador NSIS (elige carpeta, accesos directos). |
+| **`Las Gambusinas Launcher 1.0.0.exe`** | **Portable** (un solo ejecutable, sin instalador). |
+| **`win-unpacked/`** | Carpeta descomprimida para pruebas o depuración. |
+
+El script `scripts/create-shortcut.ps1` se copia a `resources/scripts/` en el build para el inicio automático con Windows.
+
+### Rutas con el `.exe` instalado
+
+Por defecto, la primera ejecución asume el monorepo en **`%USERPROFILE%\PROYECTOGAMBUSINAS`** (tres carpetas: `Backend-LasGambusinas`, `appcocina`, `Las-Gambusinas`). Si tu código está en otro disco o ruta:
+
+- Ajusta las rutas en **Configuración** del launcher y guarda, **o**
+- Define la variable de entorno del sistema **`LAUNCHER_MONOREPO_ROOT`** con la ruta absoluta al monorepo antes de abrir el launcher.
 
 ## Notas
 
