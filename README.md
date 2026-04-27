@@ -31,6 +31,8 @@ Si el monorepo padre ya es un repo Git y `launcher` aparece como carpeta sin seg
 
 Panel tipo **dashboard** con **barra lateral**: Resumen, Rutas e instalación (detección automática del monorepo, clonado Git), Servicios, Git y actualizaciones (`fetch` + commits detrás del remoto), Datos JSON, Mozos (APK), Avanzado y Registro.
 
+**Motion / iconos (alineado con las 3 apps):** el renderer carga **GSAP** y **Lucide** desde `node_modules` (misma familia que backend, `appcocina` y Expo mozos). Enlaces rápidos al **login** del dashboard (`/login`), no a `/admin`.
+
 Las URLs en `cloneUrls` son plantillas (`hgartemis3515/...`); cámbialas en la UI o en `launcher-config.json` si tus repos tienen otro nombre o son privados (necesitarás credenciales Git configuradas).
 
 **Backend y reinicios:** el launcher usa por defecto `npm run start` (sin nodemon). Si usas `dev`, nodemon puede reiniciar al escribir `data/*.json`; el backend incluye `nodemon.json` que solo vigila `index.js` y `src/`.
@@ -51,6 +53,8 @@ La configuración se guarda en `%APPDATA%\LasGambusinas\launcher-config.json`. E
 ```bash
 npm run dist
 ```
+
+Antes de empaquetar, `predist` intenta cerrar **`Las Gambusinas Launcher.exe`** si sigue abierto (suele bloquear `dist\win-unpacked\resources\app.asar`). Si el error *“cannot access the file because it is being used by another process”* continúa: cierre el Explorador de archivos en `launcher\dist\`, desactive un momento el antivirus sobre esa carpeta o reinicie el terminal tras cerrar la app.
 
 Salida en `launcher/dist/`:
 

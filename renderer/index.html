@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self';" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Las Gambusinas — Launcher</title>
     <link rel="stylesheet" href="styles.css" />
@@ -47,8 +47,12 @@
       <header class="topbar">
         <h1 class="topbar-title">Panel de control</h1>
         <div class="topbar-actions">
-          <button type="button" id="btn-refresh" class="ghost">Actualizar</button>
-          <button type="button" id="btn-save-config" class="primary">Guardar configuración</button>
+          <button type="button" id="btn-refresh" class="ghost topbar-btn">
+            <i data-lucide="refresh-cw" class="topbar-ico" aria-hidden="true"></i><span>Actualizar</span>
+          </button>
+          <button type="button" id="btn-save-config" class="primary topbar-btn">
+            <i data-lucide="save" class="topbar-ico" aria-hidden="true"></i><span>Guardar</span>
+          </button>
         </div>
       </header>
 
@@ -70,10 +74,16 @@
 
           <div class="panel">
             <h2>Enlaces rápidos</h2>
-            <div class="links">
-              <button type="button" class="ghost" data-open="cocina">Abrir cocina</button>
-              <button type="button" class="ghost" data-open="admin">Abrir /admin</button>
-              <button type="button" class="ghost" data-open="root">Abrir backend /</button>
+            <div class="links links-quick">
+              <button type="button" class="ghost link-quick" data-open="cocina">
+                <i data-lucide="utensils" class="link-ico"></i><span>Cocina</span>
+              </button>
+              <button type="button" class="ghost link-quick" data-open="login">
+                <i data-lucide="log-in" class="link-ico"></i><span>Login dashboard</span>
+              </button>
+              <button type="button" class="ghost link-quick" data-open="root">
+                <i data-lucide="server" class="link-ico"></i><span>Backend /</span>
+              </button>
             </div>
           </div>
         </section>
@@ -221,7 +231,7 @@
               </div>
             </div>
             <div class="field">
-              <label>URL base (admin / enlaces)</label>
+              <label>URL base del dashboard (login / enlaces)</label>
               <input type="text" id="public-base-url" />
             </div>
             <div class="field">
@@ -276,6 +286,10 @@
       </main>
     </div>
 
+    <!-- GSAP + Lucide (backend, appcocina, Expo). canvas-confetti (delight). framer-motion/dom-mini vía import dinámico en renderer.js (paridad con appcocina + Motion vanilla). -->
+    <script src="../node_modules/canvas-confetti/dist/confetti.browser.js"></script>
+    <script src="../node_modules/gsap/dist/gsap.min.js"></script>
+    <script src="../node_modules/lucide/dist/umd/lucide.min.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

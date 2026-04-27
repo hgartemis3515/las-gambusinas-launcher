@@ -4,12 +4,120 @@ const $ = (id) => document.getElementById(id);
 /** @type {Record<string, any>} */
 let lastUpdates = { backend: null, cocina: null, mozos: null };
 
+function prefersReducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+}
+
+/** @type {Promise<((el: Element, keyframes: object, opts?: object) => unknown) | null> | null} */
+let miniAnimatePromise = null;
+function loadMiniAnimate() {
+  if (!miniAnimatePromise) {
+    miniAnimatePromise = import('../node_modules/framer-motion/dist/es/dom-mini.mjs')
+      .then((m) => m.animate)
+      .catch(() => null);
+  }
+  return miniAnimatePromise;
+}
+
+function celebrateLite() {
+  if (prefersReducedMotion() || typeof window.confetti !== 'function') return;
+  window.confetti({
+    particleCount: 48,
+    spread: 62,
+    startVelocity: 22,
+    origin: { y: 0.72 },
+    scalar: 0.9,
+    colors: ['#3d9a6e', '#4a8ae8', '#c5d4e8', '#8a6a2a'],
+  });
+}
+
+function entranceMainSection(sectionId) {
+  if (prefersReducedMotion()) return;
+  const sec = document.getElementById(`section-${sectionId}`);
+  if (!sec) return;
+  const panels = sec.querySelectorAll('.panel');
+  const gs = window.gsap;
+  if (gs && panels.length) {
+    gs.killTweensOf(panels);
+    gs.fromTo(
+      panels,
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.34, stagger: 0.055, ease: 'power2.out' },
+    );
+  }
+  loadMiniAnimate().then((anim) => {
+    if (anim) anim(sec, { opacity: [0.88, 1] }, { duration: 0.22 });
+  });
+}
+
+async function animateWizardModal() {
+  if (prefersReducedMotion()) return;
+  const modal = document.querySelector('#wizard .modal');
+  if (!modal || $('wizard')?.classList.contains('hidden')) return;
+  const anim = await loadMiniAnimate();
+  if (anim) {
+    anim(modal, { opacity: [0, 1], y: [14, 0] }, { duration: 0.4, ease: [0.22, 1, 0.36, 1] });
+    return;
+  }
+  const gs = window.gsap;
+  if (gs) gs.fromTo(modal, { opacity: 0, scale: 0.94, y: 10 }, { opacity: 1, scale: 1, y: 0, duration: 0.38, ease: 'power2.out' });
+}
+
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function iconsReplace(root) {
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons({ root: root || document });
+    }
+  } catch (e) {
+    console.warn('Lucide:', e);
+  }
+}
+
+function pulseBtn(el) {
+  if (prefersReducedMotion()) return;
+  const gs = window.gsap;
+  if (gs && el) gs.fromTo(el, { scale: 0.94 }, { scale: 1, duration: 0.38, ease: 'elastic.out(1, 0.55)' });
+}
+
+function bindSvcCardMotion(container) {
+  if (prefersReducedMotion()) return;
+  const gs = window.gsap;
+  if (!gs || !container) return;
+  container.querySelectorAll('.svc-card').forEach((card) => {
+    card.addEventListener('mouseenter', () => {
+      gs.to(card, {
+        y: -4,
+        boxShadow: '0 14px 32px rgba(0,0,0,0.45)',
+        duration: 0.28,
+        ease: 'power2.out',
+      });
+    });
+    card.addEventListener('mouseleave', () => {
+      gs.to(card, { y: 0, boxShadow: 'none', duration: 0.32, ease: 'power2.out' });
+    });
+  });
+  container.querySelectorAll('.btn-svc').forEach((btn) => {
+    btn.addEventListener('mouseenter', () => gs.to(btn, { scale: 1.06, duration: 0.2, ease: 'power2.out' }));
+    btn.addEventListener('mouseleave', () => gs.to(btn, { scale: 1, duration: 0.2, ease: 'power2.out' }));
+  });
+}
+
+function bindQuickLinkMotion() {
+  if (prefersReducedMotion()) return;
+  const gs = window.gsap;
+  document.querySelectorAll('.link-quick').forEach((btn) => {
+    if (!gs) return;
+    btn.addEventListener('mouseenter', () => gs.to(btn, { scale: 1.04, y: -1, duration: 0.22, ease: 'power2.out' }));
+    btn.addEventListener('mouseleave', () => gs.to(btn, { scale: 1, y: 0, duration: 0.22, ease: 'power2.out' }));
+  });
 }
 
 function appendLogLine(entry) {
@@ -153,21 +261,30 @@ async function refreshServices() {
         <h3>${names[id]}</h3>
         <div class="svc-meta">${s.running ? `En ejecución (PID ${s.pid})` : 'Detenido'}${s.lastError ? ` — ${escapeHtml(s.lastError)}` : ''}</div>
         <div class="svc-actions">
-          <button type="button" data-start="${id}">Iniciar</button>
-          <button type="button" data-stop="${id}">Detener</button>
+          <button type="button" class="btn-svc btn-svc-start" data-start="${id}">
+            <i data-lucide="play" class="btn-svc-ico" aria-hidden="true"></i><span>Iniciar</span>
+          </button>
+          <button type="button" class="btn-svc btn-svc-stop" data-stop="${id}">
+            <i data-lucide="square" class="btn-svc-ico" aria-hidden="true"></i><span>Detener</span>
+          </button>
         </div>
       </div>`;
     })
     .join('');
 
+  iconsReplace(row);
+  bindSvcCardMotion(row);
+
   row.querySelectorAll('[data-start]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (ev) => {
+      pulseBtn(ev.currentTarget);
       await api.serviceStart(btn.getAttribute('data-start'));
       refreshServices();
     });
   });
   row.querySelectorAll('[data-stop]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (ev) => {
+      pulseBtn(ev.currentTarget);
       await api.serviceStop(btn.getAttribute('data-stop'));
       refreshServices();
     });
@@ -300,7 +417,11 @@ function setDetectHint(text) {
 
 async function init() {
   document.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => showSection(btn.getAttribute('data-section')));
+    btn.addEventListener('click', () => {
+      const sid = btn.getAttribute('data-section');
+      showSection(sid);
+      entranceMainSection(sid);
+    });
   });
 
   const cfg = await api.getConfig();
@@ -311,11 +432,13 @@ async function init() {
 
   if (!state.firstLaunchCompletedAt && cfg.showFirstRunWizard !== false) {
     $('wizard').classList.remove('hidden');
+    requestAnimationFrame(() => animateWizardModal());
   }
 
   $('wiz-done').addEventListener('click', async () => {
     const hide = $('wiz-hide').checked;
     $('wizard').classList.add('hidden');
+    setTimeout(celebrateLite, 60);
     await api.saveState({ firstLaunchCompletedAt: Date.now() });
     if (hide) {
       const c = await api.getConfig();
@@ -329,6 +452,7 @@ async function init() {
     const next = readConfigFromForm();
     const cur = await api.getConfig();
     await api.saveConfig({ ...cur, ...next });
+    celebrateLite();
     appendLogLine({ service: 'launcher', line: 'Configuración guardada.', ts: Date.now() });
     await fillForm(await api.getConfig());
     await refreshDataBanners();
@@ -362,6 +486,7 @@ async function init() {
   $('btn-detect-apply').addEventListener('click', async () => {
     const r = await api.pathsApplyDetect();
     if (r.ok) {
+      celebrateLite();
       appendLogLine({
         service: 'launcher',
         line: `Rutas guardadas desde: ${r.source} → ${r.root}`,
@@ -436,7 +561,7 @@ async function init() {
       const u = btn.getAttribute('data-open');
       let url = base.replace(/\/$/, '');
       if (u === 'cocina') url = `http://127.0.0.1:${$('port-cocina').value || 3001}/`;
-      else if (u === 'admin') url = `${url}/admin`;
+      else if (u === 'login') url = `${url}/login`;
       else if (u === 'root') url = `${url}/`;
       await api.openExternal(url);
     });
@@ -471,6 +596,17 @@ async function init() {
   const d0 = await api.pathsAutoDetect();
   if (d0.ok) setDetectHint(d0.source || 'OK');
   else setDetectHint('configure rutas o clone');
+
+  const mainCol = document.querySelector('.main-col');
+  if (mainCol) iconsReplace(mainCol);
+  bindQuickLinkMotion();
+  if ($('wizard')?.classList.contains('hidden')) entranceMainSection('resumen');
+
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => loadMiniAnimate(), { timeout: 4000 });
+  } else {
+    setTimeout(() => loadMiniAnimate(), 800);
+  }
 
   setInterval(async () => {
     await refreshMongoAndHttp();
