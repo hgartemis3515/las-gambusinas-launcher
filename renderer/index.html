@@ -7,9 +7,40 @@
     <title>Las Gambusinas — Launcher</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body class="dashboard">
+  <body>
+    <!-- ═══════════ SPLASH SCREEN ═══════════ -->
+    <div id="splash" class="splash">
+      <div class="splash-inner">
+        <div class="splash-logo-ring">
+          <svg class="splash-ring-svg" viewBox="0 0 120 120">
+            <circle class="splash-ring-track" cx="60" cy="60" r="52" />
+            <circle class="splash-ring-fill" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="splash-logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+        </div>
+        <div class="splash-text">
+          <span class="splash-brand">Las Gambusinas</span>
+          <span class="splash-sub">Launcher</span>
+        </div>
+        <div class="splash-progress">
+          <div class="splash-progress-bar" id="splash-bar"></div>
+        </div>
+        <div class="splash-status" id="splash-status">Cargando sistema…</div>
+      </div>
+    </div>
+
+    <!-- ═══════════ WIZARD ═══════════ -->
     <div id="wizard" class="overlay hidden" role="dialog" aria-modal="true">
       <div class="modal">
+        <div class="modal-icon">
+          <i data-lucide="settings" aria-hidden="true"></i>
+        </div>
         <h2>Primera configuración</h2>
         <p>Revise rutas, MongoDB y carpeta <code>data/</code>. Puede marcar esta introducción como completada cuando esté listo.</p>
         <ul class="wiz-list">
@@ -18,275 +49,437 @@
         </ul>
         <label class="check"><input type="checkbox" id="wiz-hide" /> No volver a mostrar</label>
         <div class="modal-actions">
-          <button type="button" id="wiz-done" class="primary">Marcar como completado</button>
+          <button type="button" id="wiz-done" class="btn btn-primary btn-lg">Marcar como completado</button>
         </div>
       </div>
     </div>
 
-    <aside class="sidebar" aria-label="Navegación principal">
-      <div class="brand">
-        <span class="brand-title">Las Gambusinas</span>
-        <span class="brand-sub">Launcher</span>
-      </div>
-      <nav class="nav">
-        <button type="button" class="nav-item active" data-section="resumen">Resumen</button>
-        <button type="button" class="nav-item" data-section="rutas">Rutas e instalación</button>
-        <button type="button" class="nav-item" data-section="servicios">Servicios</button>
-        <button type="button" class="nav-item" data-section="git">Git y actualizaciones</button>
-        <button type="button" class="nav-item" data-section="datos">Datos JSON</button>
-        <button type="button" class="nav-item" data-section="mozos">Mozos (APK)</button>
-        <button type="button" class="nav-item" data-section="avanzado">Avanzado</button>
-        <button type="button" class="nav-item" data-section="registro">Registro</button>
-      </nav>
-      <div class="sidebar-footer">
-        <span class="hint-mini" id="detect-id-hint">Identificador: —</span>
-      </div>
-    </aside>
-
-    <div class="main-col">
-      <header class="topbar">
-        <h1 class="topbar-title">Panel de control</h1>
-        <div class="topbar-actions">
-          <button type="button" id="btn-refresh" class="ghost topbar-btn">
-            <i data-lucide="refresh-cw" class="topbar-ico" aria-hidden="true"></i><span>Actualizar</span>
-          </button>
-          <button type="button" id="btn-save-config" class="primary topbar-btn">
-            <i data-lucide="save" class="topbar-ico" aria-hidden="true"></i><span>Guardar</span>
-          </button>
+    <!-- ═══════════ MAIN LAYOUT ═══════════ -->
+    <div id="app" class="app hidden">
+      <aside class="sidebar" aria-label="Navegación principal">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">Las Gambusinas</span>
+            <span class="brand-sub">Launcher v1.0</span>
+          </div>
         </div>
-      </header>
+        <nav class="nav">
+          <button type="button" class="nav-item active" data-section="resumen">
+            <i data-lucide="layout-dashboard" class="nav-icon"></i>
+            <span>Resumen</span>
+          </button>
+          <button type="button" class="nav-item" data-section="servicios">
+            <i data-lucide="play-circle" class="nav-icon"></i>
+            <span>Servicios</span>
+          </button>
+          <button type="button" class="nav-item" data-section="rutas">
+            <i data-lucide="folder-search" class="nav-icon"></i>
+            <span>Rutas e instalación</span>
+          </button>
+          <button type="button" class="nav-item" data-section="git">
+            <i data-lucide="git-branch" class="nav-icon"></i>
+            <span>Git y actualizaciones</span>
+          </button>
+          <button type="button" class="nav-item" data-section="datos">
+            <i data-lucide="database" class="nav-icon"></i>
+            <span>Datos JSON</span>
+          </button>
+          <button type="button" class="nav-item" data-section="mozos">
+            <i data-lucide="smartphone" class="nav-icon"></i>
+            <span>Mozos (APK)</span>
+          </button>
+          <button type="button" class="nav-item" data-section="avanzado">
+            <i data-lucide="sliders" class="nav-icon"></i>
+            <span>Avanzado</span>
+          </button>
+          <button type="button" class="nav-item" data-section="registro">
+            <i data-lucide="scroll-text" class="nav-icon"></i>
+            <span>Registro</span>
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="hint-mini" id="detect-id-hint">Identificador: —</span>
+        </div>
+      </aside>
 
-      <main class="content">
-        <section id="section-resumen" class="section">
-          <div id="banner-manifest" class="banner banner-warn hidden"></div>
-          <div id="banner-json" class="banner banner-info hidden"></div>
-          <div id="banner-clean" class="banner banner-ok hidden"></div>
-
-          <div class="panel">
-            <h2>MongoDB y aplicaciones (HTTP)</h2>
-            <div class="grid-4" id="status-grid"></div>
+      <div class="main-col">
+        <header class="topbar">
+          <h1 class="topbar-title" id="topbar-title">Panel de control</h1>
+          <div class="topbar-actions">
+            <button type="button" id="btn-refresh" class="btn btn-ghost topbar-btn">
+              <i data-lucide="refresh-cw" class="btn-icon" aria-hidden="true"></i><span>Actualizar</span>
+            </button>
+            <button type="button" id="btn-save-config" class="btn btn-primary topbar-btn">
+              <i data-lucide="save" class="btn-icon" aria-hidden="true"></i><span>Guardar</span>
+            </button>
           </div>
+        </header>
 
-          <div class="panel">
-            <h2>Estado local de repositorios</h2>
-            <div class="repo-strip" id="repo-strip-summary"></div>
-          </div>
+        <main class="content">
+          <!-- ═══ RESUMEN ═══ -->
+          <section id="section-resumen" class="section hidden">
+            <div id="banner-manifest" class="banner banner-warn hidden"></div>
+            <div id="banner-json" class="banner banner-info hidden"></div>
+            <div id="banner-clean" class="banner banner-ok hidden"></div>
 
-          <div class="panel">
-            <h2>Enlaces rápidos</h2>
-            <div class="links links-quick">
-              <button type="button" class="ghost link-quick" data-open="cocina">
-                <i data-lucide="utensils" class="link-ico"></i><span>Cocina</span>
-              </button>
-              <button type="button" class="ghost link-quick" data-open="login">
-                <i data-lucide="log-in" class="link-ico"></i><span>Login dashboard</span>
-              </button>
-              <button type="button" class="ghost link-quick" data-open="root">
-                <i data-lucide="server" class="link-ico"></i><span>Backend /</span>
-              </button>
-            </div>
-          </div>
-        </section>
+            <!-- Global status strip -->
+            <div class="status-strip" id="status-strip"></div>
 
-        <section id="section-rutas" class="section hidden">
-          <div class="panel">
-            <h2>Identificador automático de rutas</h2>
-            <p class="hint">
-              Busca la carpeta que contiene <strong>Backend-LasGambusinas</strong>, <strong>appcocina</strong> y
-              <strong>Las-Gambusinas</strong> (variables de entorno, perfil de usuario, carpeta del ejecutable y
-              padre del paquete launcher).
-            </p>
-            <div class="row">
-              <button type="button" id="btn-detect-only" class="ghost">Solo analizar (vista previa)</button>
-              <button type="button" id="btn-detect-apply" class="primary">Detectar y guardar rutas</button>
-            </div>
-            <pre id="detect-preview" class="preview-box hidden"></pre>
-          </div>
-
-          <div class="panel">
-            <h2>Instalación por Git (clonar)</h2>
-            <p class="hint">
-              Si falta algún repo, define la <strong>carpeta padre</strong> donde quedarán las tres carpetas y las URLs
-              (repos públicos o con credenciales ya configuradas en Git). <code>git clone --depth 1</code>.
-            </p>
-            <div class="field">
-              <label>Carpeta padre para clonar (vacío = raíz del monorepo en config)</label>
-              <div class="field-inline">
-                <input type="text" id="clone-parent-dir" placeholder="%USERPROFILE%\PROYECTOGAMBUSINAS" />
-                <button type="button" id="btn-pick-clone-parent" class="ghost">Examinar…</button>
+            <!-- START ALL CARD -->
+            <div class="panel panel-hero" id="start-all-panel">
+              <div class="hero-content">
+                <div class="hero-text">
+                  <h2>Control centralizado</h2>
+                  <p>Inicie, detenga y supervise los tres servicios desde un solo lugar.</p>
+                </div>
+                <div class="hero-actions">
+                  <button type="button" id="btn-start-all" class="btn btn-start-all">
+                    <i data-lucide="rocket" class="btn-icon-lg"></i>
+                    <span>Iniciar todo</span>
+                  </button>
+                  <button type="button" id="btn-stop-all" class="btn btn-stop-all">
+                    <i data-lucide="square" class="btn-icon-lg"></i>
+                    <span>Detener todo</span>
+                  </button>
+                </div>
+              </div>
+              <label class="check hero-check">
+                <input type="checkbox" id="start-all-include-expo" checked />
+                Incluir App Mozos (Expo) al iniciar todo
+              </label>
+              <!-- Progress bar for start-all -->
+              <div class="launch-progress hidden" id="launch-progress">
+                <div class="launch-progress-bar" id="launch-progress-bar"></div>
+              </div>
+              <div class="launch-steps hidden" id="launch-steps">
+                <div class="launch-step" id="step-backend" data-step="backend">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Backend</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
+                <div class="launch-step" id="step-cocina" data-step="cocina">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Cocina</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
+                <div class="launch-step" id="step-expo" data-step="expo">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Mozos (Expo)</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
               </div>
             </div>
-            <div class="field-row">
-              <button type="button" id="btn-clone-all" class="primary">Clonar los 3 que falten</button>
-            </div>
-            <div class="field">
-              <label>URL Git — Backend</label>
-              <input type="text" id="clone-url-backend" />
-            </div>
-            <div class="field">
-              <label>URL Git — Cocina</label>
-              <input type="text" id="clone-url-cocina" />
-            </div>
-            <div class="field">
-              <label>URL Git — Mozos</label>
-              <input type="text" id="clone-url-mozos" />
-            </div>
-          </div>
 
-          <div class="panel">
-            <h2>Rutas manuales</h2>
-            <div class="field">
-              <label>Backend</label>
-              <div class="field-inline">
-                <input type="text" id="path-backend" />
-                <button type="button" class="ghost btn-pick-path" data-target="path-backend">Examinar…</button>
+            <div class="panel">
+              <h2>Estado de servicios</h2>
+              <div class="grid-4" id="status-grid"></div>
+            </div>
+
+            <div class="panel">
+              <h2>Repositorios</h2>
+              <div class="repo-strip" id="repo-strip-summary"></div>
+            </div>
+
+            <div class="panel">
+              <h2>Enlaces rápidos</h2>
+              <div class="links links-quick">
+                <button type="button" class="btn btn-ghost link-quick" data-open="cocina">
+                  <i data-lucide="utensils" class="link-ico"></i><span>Cocina</span>
+                </button>
+                <button type="button" class="btn btn-ghost link-quick" data-open="login">
+                  <i data-lucide="log-in" class="link-ico"></i><span>Login dashboard</span>
+                </button>
+                <button type="button" class="btn btn-ghost link-quick" data-open="root">
+                  <i data-lucide="server" class="link-ico"></i><span>Backend /</span>
+                </button>
               </div>
             </div>
-            <div class="field">
-              <label>App cocina</label>
-              <div class="field-inline">
-                <input type="text" id="path-cocina" />
-                <button type="button" class="ghost btn-pick-path" data-target="path-cocina">Examinar…</button>
+          </section>
+
+          <!-- ═══ SERVICIOS ═══ -->
+          <section id="section-servicios" class="section hidden">
+            <div class="panel">
+              <h2>Inicio rápido</h2>
+              <div class="quick-actions">
+                <button type="button" id="btn-start-all-svc" class="btn btn-start-all">
+                  <i data-lucide="rocket" class="btn-icon-lg"></i>
+                  <span>Iniciar todo</span>
+                </button>
+                <button type="button" id="btn-stop-all-svc" class="btn btn-stop-all">
+                  <i data-lucide="square" class="btn-icon-lg"></i>
+                  <span>Detener todo</span>
+                </button>
+                <label class="check inline-check">
+                  <input type="checkbox" id="start-all-include-expo-svc" checked />
+                  Incluir Mozos
+                </label>
+              </div>
+              <!-- Progress bar for start-all (services section) -->
+              <div class="launch-progress hidden" id="launch-progress-svc">
+                <div class="launch-progress-bar" id="launch-progress-bar-svc"></div>
+              </div>
+              <div class="launch-steps hidden" id="launch-steps-svc">
+                <div class="launch-step" id="step-svc-backend" data-step="backend">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Backend</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
+                <div class="launch-step" id="step-svc-cocina" data-step="cocina">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Cocina</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
+                <div class="launch-step" id="step-svc-expo" data-step="expo">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Mozos (Expo)</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
               </div>
             </div>
-            <div class="field">
-              <label>App mozos (Expo)</label>
-              <div class="field-inline">
-                <input type="text" id="path-mozos" />
-                <button type="button" class="ghost btn-pick-path" data-target="path-mozos">Examinar…</button>
+            <div class="panel">
+              <h2>Servicios individuales</h2>
+              <p class="hint">
+                <strong>Backend:</strong> por defecto <code>npm run start</code>.
+                <strong>Cocina:</strong> front web en el puerto configurado.
+                <strong>Mozos:</strong> Expo Metro para desarrollo Android.
+              </p>
+              <div class="services" id="services-row"></div>
+            </div>
+          </section>
+
+          <!-- ═══ RUTAS ═══ -->
+          <section id="section-rutas" class="section hidden">
+            <div class="panel">
+              <h2>Identificador automático de rutas</h2>
+              <p class="hint">
+                Busca la carpeta que contiene <strong>Backend-LasGambusinas</strong>, <strong>appcocina</strong> y
+                <strong>Las-Gambusinas</strong>.
+              </p>
+              <div class="row">
+                <button type="button" id="btn-detect-only" class="btn btn-ghost">Solo analizar (vista previa)</button>
+                <button type="button" id="btn-detect-apply" class="btn btn-primary">Detectar y guardar rutas</button>
               </div>
+              <pre id="detect-preview" class="preview-box hidden"></pre>
             </div>
-            <div class="field-row">
-              <button type="button" id="btn-clone-backend" class="ghost" data-clone="backend">Clonar solo backend</button>
-              <button type="button" id="btn-clone-cocina" class="ghost" data-clone="cocina">Clonar solo cocina</button>
-              <button type="button" id="btn-clone-mozos" class="ghost" data-clone="mozos">Clonar solo mozos</button>
-            </div>
-          </div>
-        </section>
 
-        <section id="section-servicios" class="section hidden">
-          <div class="panel">
-            <h2>Procesos (npm)</h2>
-            <p class="hint">
-              <strong>Backend:</strong> por defecto se usa <code>npm run start</code> (Node estable). Con
-              <code>npm run dev</code> (nodemon) el servidor puede reiniciarse muchas veces al inicio porque el propio
-              backend escribe en <code>data/*.json</code> y nodemon interpreta “cambios”. En Avanzado puede dejar
-              <code>dev</code> si necesita recarga al editar código; el repo ya incluye <code>nodemon.json</code> que
-              limita la vigilancia a <code>index.js</code> y <code>src/</code>.
-            </p>
-            <div class="services" id="services-row"></div>
-          </div>
-        </section>
-
-        <section id="section-git" class="section hidden">
-          <div class="panel">
-            <h2>Git y actualizaciones</h2>
-            <p class="hint">Primero <strong>Comprobar actualizaciones</strong> (hace <code>git fetch</code>). Luego puede hacer pull si no hay cambios locales sin commit.</p>
-            <div class="row" style="margin-bottom: 12px">
-              <button type="button" id="btn-check-updates-all" class="primary">Comprobar actualizaciones (los 3)</button>
-              <button type="button" id="btn-fetch-all" class="ghost">git fetch (los 3)</button>
-            </div>
-            <div class="git-grid" id="git-grid"></div>
-          </div>
-        </section>
-
-        <section id="section-datos" class="section hidden">
-          <div class="panel">
-            <h2>Datos JSON en backend</h2>
-            <p class="hint">Manifiesto: <code id="manifest-label"></code></p>
-            <div class="row">
-              <button type="button" id="btn-open-data" class="ghost">Abrir carpeta data</button>
-              <button type="button" id="btn-delete-manifest" class="danger">Eliminar manifiesto</button>
-            </div>
-            <ul id="data-file-list" class="file-list"></ul>
-          </div>
-        </section>
-
-        <section id="section-mozos" class="section hidden">
-          <div class="panel">
-            <h2>App mozos — APK (EAS)</h2>
-            <p class="hint">Requiere <code>eas login</code>. No cierre el launcher durante el build.</p>
-            <div class="row">
-              <button type="button" id="eas-preview" class="ghost">Build Android — preview</button>
-              <button type="button" id="eas-prod" class="ghost">Build Android — production</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="section-avanzado" class="section hidden">
-          <div class="panel">
-            <h2>Puertos y URL</h2>
-            <div class="field-row three">
+            <div class="panel">
+              <h2>Instalación por Git (clonar)</h2>
+              <p class="hint">
+                Si falta algún repo, define la <strong>carpeta padre</strong> y las URLs. <code>git clone --depth 1</code>.
+              </p>
               <div class="field">
-                <label>Puerto backend</label>
-                <input type="number" id="port-backend" />
+                <label>Carpeta padre para clonar</label>
+                <div class="field-inline">
+                  <input type="text" id="clone-parent-dir" placeholder="%USERPROFILE%\PROYECTOGAMBUSINAS" />
+                  <button type="button" id="btn-pick-clone-parent" class="btn btn-ghost">Examinar…</button>
+                </div>
+              </div>
+              <div class="field-row">
+                <button type="button" id="btn-clone-all" class="btn btn-primary">Clonar los 3 que falten</button>
               </div>
               <div class="field">
-                <label>Puerto cocina</label>
-                <input type="number" id="port-cocina" />
+                <label>URL Git — Backend</label>
+                <input type="text" id="clone-url-backend" />
               </div>
               <div class="field">
-                <label>Puerto Metro</label>
-                <input type="number" id="port-expo" />
+                <label>URL Git — Cocina</label>
+                <input type="text" id="clone-url-cocina" />
+              </div>
+              <div class="field">
+                <label>URL Git — Mozos</label>
+                <input type="text" id="clone-url-mozos" />
               </div>
             </div>
-            <div class="field">
-              <label>URL base del dashboard (login / enlaces)</label>
-              <input type="text" id="public-base-url" />
-            </div>
-            <div class="field">
-              <label>Ruta manifiesto datos (relativa al backend)</label>
-              <input type="text" id="data-manifest-path" />
-            </div>
-          </div>
-          <div class="panel">
-            <h2>Scripts npm</h2>
-            <div class="field-row three">
-              <div class="field">
-                <label>npm backend (recomendado: start)</label>
-                <input type="text" id="npm-backend" placeholder="start" />
-              </div>
-              <div class="field">
-                <label>npm cocina</label>
-                <input type="text" id="npm-cocina" placeholder="start" />
-              </div>
-              <div class="field">
-                <label>npm Expo</label>
-                <input type="text" id="npm-expo" placeholder="start" />
-              </div>
-            </div>
-          </div>
-          <div class="panel">
-            <h2>Inicio automático y MongoDB</h2>
-            <label class="check row-check"><input type="checkbox" id="cfg-autostart-win" /> Launcher con Windows (Inicio)</label>
-            <label class="check row-check"><input type="checkbox" id="cfg-autostart-svc" /> Al abrir: iniciar backend y cocina</label>
-            <label class="check row-check"><input type="checkbox" id="cfg-autostart-expo" /> También iniciar Expo</label>
-            <label class="check row-check"><input type="checkbox" id="cfg-mongo-check" /> Comprobar MongoDB antes de auto-iniciar backend</label>
-            <label class="check row-check"><input type="checkbox" id="cfg-mongo-force" /> Forzar backend si Mongo falla</label>
-            <label class="check row-check"><input type="checkbox" id="cfg-stop-quit" /> Al cerrar launcher, detener servicios</label>
-            <div class="field-row three" style="margin-top: 12px">
-              <div class="field">
-                <label>Retraso auto-inicio (ms)</label>
-                <input type="number" id="delay-boot" />
-              </div>
-              <div class="field">
-                <label>Entre servicios (ms)</label>
-                <input type="number" id="delay-between" />
-              </div>
-            </div>
-          </div>
-        </section>
 
-        <section id="section-registro" class="section hidden">
-          <div class="panel">
-            <h2>Registro</h2>
-            <textarea id="log-area" readonly rows="18"></textarea>
-          </div>
-        </section>
-      </main>
+            <div class="panel">
+              <h2>Rutas manuales</h2>
+              <div class="field">
+                <label>Backend</label>
+                <div class="field-inline">
+                  <input type="text" id="path-backend" />
+                  <button type="button" class="btn btn-ghost btn-pick-path" data-target="path-backend">Examinar…</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>App cocina</label>
+                <div class="field-inline">
+                  <input type="text" id="path-cocina" />
+                  <button type="button" class="btn btn-ghost btn-pick-path" data-target="path-cocina">Examinar…</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>App mozos (Expo)</label>
+                <div class="field-inline">
+                  <input type="text" id="path-mozos" />
+                  <button type="button" class="btn btn-ghost btn-pick-path" data-target="path-mozos">Examinar…</button>
+                </div>
+              </div>
+              <div class="field-row">
+                <button type="button" id="btn-clone-backend" class="btn btn-ghost" data-clone="backend">Clonar solo backend</button>
+                <button type="button" id="btn-clone-cocina" class="btn btn-ghost" data-clone="cocina">Clonar solo cocina</button>
+                <button type="button" id="btn-clone-mozos" class="btn btn-ghost" data-clone="mozos">Clonar solo mozos</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ═══ GIT ═══ -->
+          <section id="section-git" class="section hidden">
+            <div class="panel">
+              <h2>Git y actualizaciones</h2>
+              <p class="hint">Primero <strong>Comprobar actualizaciones</strong> (hace <code>git fetch</code>). Luego puede hacer pull si no hay cambios locales.</p>
+              <div class="row" style="margin-bottom: 12px">
+                <button type="button" id="btn-check-updates-all" class="btn btn-primary">Comprobar actualizaciones (los 3)</button>
+                <button type="button" id="btn-fetch-all" class="btn btn-ghost">git fetch (los 3)</button>
+              </div>
+              <div class="git-grid" id="git-grid"></div>
+            </div>
+          </section>
+
+          <!-- ═══ DATOS ═══ -->
+          <section id="section-datos" class="section hidden">
+            <div class="panel">
+              <h2>Datos JSON en backend</h2>
+              <p class="hint">Manifiesto: <code id="manifest-label"></code></p>
+              <div class="row">
+                <button type="button" id="btn-open-data" class="btn btn-ghost">Abrir carpeta data</button>
+                <button type="button" id="btn-delete-manifest" class="btn btn-danger">Eliminar manifiesto</button>
+              </div>
+              <ul id="data-file-list" class="file-list"></ul>
+            </div>
+          </section>
+
+          <!-- ═══ MOZOS ═══ -->
+          <section id="section-mozos" class="section hidden">
+            <div class="panel">
+              <h2>App mozos — APK (EAS)</h2>
+              <p class="hint">Requiere <code>eas login</code>. No cierre el launcher durante el build.</p>
+              <div class="row">
+                <button type="button" id="eas-preview" class="btn btn-ghost">Build Android — preview</button>
+                <button type="button" id="eas-prod" class="btn btn-ghost">Build Android — production</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ═══ AVANZADO ═══ -->
+          <section id="section-avanzado" class="section hidden">
+            <!-- Backend -->
+            <div class="panel">
+              <h2><i data-lucide="server" class="panel-icon"></i> Backend</h2>
+              <div class="field-row three">
+                <div class="field">
+                  <label>Puerto</label>
+                  <input type="number" id="port-backend" placeholder="3000" />
+                </div>
+                <div class="field">
+                  <label>Script npm</label>
+                  <input type="text" id="npm-backend" placeholder="start" />
+                </div>
+                <div class="field">
+                  <label>URL base (login / enlaces)</label>
+                  <input type="text" id="public-base-url" placeholder="http://127.0.0.1:3000" />
+                </div>
+              </div>
+              <div class="field-row" style="margin-top: 8px">
+                <button type="button" class="btn btn-ghost btn-open-link" data-open="root">
+                  <i data-lucide="external-link" class="btn-icon"></i> Abrir Backend /
+                </button>
+                <button type="button" class="btn btn-ghost btn-open-link" data-open="login">
+                  <i data-lucide="log-in" class="btn-icon"></i> Abrir Login
+                </button>
+              </div>
+            </div>
+
+            <!-- Cocina -->
+            <div class="panel">
+              <h2><i data-lucide="utensils" class="panel-icon"></i> App cocina</h2>
+              <div class="field-row three">
+                <div class="field">
+                  <label>Puerto</label>
+                  <input type="number" id="port-cocina" placeholder="3001" />
+                </div>
+                <div class="field">
+                  <label>Script npm</label>
+                  <input type="text" id="npm-cocina" placeholder="start" />
+                </div>
+                <div class="field">
+                  <label></label>
+                  <!-- spacer -->
+                </div>
+              </div>
+              <div class="field-row" style="margin-top: 8px">
+                <button type="button" class="btn btn-ghost btn-open-link" data-open="cocina">
+                  <i data-lucide="external-link" class="btn-icon"></i> Abrir Cocina
+                </button>
+              </div>
+            </div>
+
+            <!-- Mozos (Expo) -->
+            <div class="panel">
+              <h2><i data-lucide="smartphone" class="panel-icon"></i> Mozos (Expo / Metro)</h2>
+              <div class="field-row three">
+                <div class="field">
+                  <label>Puerto Metro</label>
+                  <input type="number" id="port-expo" placeholder="8081" />
+                </div>
+                <div class="field">
+                  <label>Script npm</label>
+                  <input type="text" id="npm-expo" placeholder="start" />
+                </div>
+                <div class="field">
+                  <label></label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Datos y manifiesto -->
+            <div class="panel">
+              <h2>Datos y manifiesto</h2>
+              <div class="field">
+                <label>Ruta manifiesto datos (relativa al backend)</label>
+                <input type="text" id="data-manifest-path" />
+              </div>
+            </div>
+
+            <!-- Inicio automático y MongoDB -->
+            <div class="panel">
+              <h2>Inicio automático y MongoDB</h2>
+              <label class="check row-check"><input type="checkbox" id="cfg-autostart-win" /> Launcher con Windows (Inicio)</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-autostart-svc" /> Al abrir: iniciar backend y cocina</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-autostart-expo" /> También iniciar Expo</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-mongo-check" /> Comprobar MongoDB antes de auto-iniciar backend</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-mongo-force" /> Forzar backend si Mongo falla</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-stop-quit" /> Al cerrar launcher, detener servicios</label>
+              <div class="field-row three" style="margin-top: 12px">
+                <div class="field">
+                  <label>Retraso auto-inicio (ms)</label>
+                  <input type="number" id="delay-boot" />
+                </div>
+                <div class="field">
+                  <label>Entre servicios (ms)</label>
+                  <input type="number" id="delay-between" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ═══ REGISTRO ═══ -->
+          <section id="section-registro" class="section hidden">
+            <div class="panel">
+              <h2>Registro</h2>
+              <textarea id="log-area" readonly rows="18"></textarea>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
 
-    <!-- GSAP + Lucide (backend, appcocina, Expo). canvas-confetti (delight). framer-motion/dom-mini vía import dinámico en renderer.js (paridad con appcocina + Motion vanilla). -->
     <script src="../node_modules/canvas-confetti/dist/confetti.browser.js"></script>
     <script src="../node_modules/gsap/dist/gsap.min.js"></script>
     <script src="../node_modules/lucide/dist/umd/lucide.min.js"></script>

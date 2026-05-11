@@ -8,7 +8,6 @@ function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
 }
 
-/** @type {Promise<((el: Element, keyframes: object, opts?: object) => unknown) | null> | null} */
 let miniAnimatePromise = null;
 function loadMiniAnimate() {
   if (!miniAnimatePromise) {
@@ -22,13 +21,51 @@ function loadMiniAnimate() {
 function celebrateLite() {
   if (prefersReducedMotion() || typeof window.confetti !== 'function') return;
   window.confetti({
-    particleCount: 48,
-    spread: 62,
-    startVelocity: 22,
-    origin: { y: 0.72 },
-    scalar: 0.9,
-    colors: ['#3d9a6e', '#4a8ae8', '#c5d4e8', '#8a6a2a'],
+    particleCount: 55,
+    spread: 70,
+    startVelocity: 28,
+    origin: { y: 0.65 },
+    scalar: 0.85,
+    colors: ['#22c55e', '#3b82f6', '#eaf0f8', '#f59e0b'],
   });
+}
+
+/* ════════════════════════════════════════════
+   SPLASH SEQUENCE
+   ════════════════════════════════════════════ */
+async function runSplash() {
+  const bar = $('splash-bar');
+  const status = $('splash-status');
+  const steps = [
+    { pct: 10, text: 'Cargando configuración…' },
+    { pct: 30, text: 'Detectando servicios…' },
+    { pct: 55, text: 'Verificando estado HTTP…' },
+    { pct: 75, text: 'Preparando interfaz…' },
+    { pct: 100, text: 'Listo' },
+  ];
+
+  bar.style.width = '0%';
+  for (const step of steps) {
+    bar.style.width = step.pct + '%';
+    status.textContent = step.text;
+    await new Promise((r) => setTimeout(r, 280));
+  }
+
+  const splash = $('splash');
+  const app = $('app');
+  splash.classList.add('fade-out');
+  app.classList.remove('hidden');
+
+  const gs = window.gsap;
+  if (gs && !prefersReducedMotion()) {
+    gs.fromTo(app, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' });
+    gs.fromTo('.sidebar', { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'power2.out' });
+    gs.fromTo('.topbar', { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' });
+    entranceMainSection('resumen');
+  }
+
+  await new Promise((r) => setTimeout(r, 500));
+  splash.style.display = 'none';
 }
 
 function entranceMainSection(sectionId) {
@@ -39,14 +76,13 @@ function entranceMainSection(sectionId) {
   const gs = window.gsap;
   if (gs && panels.length) {
     gs.killTweensOf(panels);
-    gs.fromTo(
-      panels,
-      { opacity: 0, y: 10 },
-      { opacity: 1, y: 0, duration: 0.34, stagger: 0.055, ease: 'power2.out' },
-    );
+    panels.forEach((p) => {
+      p.classList.add('panel-enter');
+      gs.fromTo(p, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' });
+    });
   }
   loadMiniAnimate().then((anim) => {
-    if (anim) anim(sec, { opacity: [0.88, 1] }, { duration: 0.22 });
+    if (anim) anim(sec, { opacity: [0.85, 1] }, { duration: 0.25 });
   });
 }
 
@@ -56,19 +92,15 @@ async function animateWizardModal() {
   if (!modal || $('wizard')?.classList.contains('hidden')) return;
   const anim = await loadMiniAnimate();
   if (anim) {
-    anim(modal, { opacity: [0, 1], y: [14, 0] }, { duration: 0.4, ease: [0.22, 1, 0.36, 1] });
+    anim(modal, { opacity: [0, 1], y: [20, 0] }, { duration: 0.45, ease: [0.22, 1, 0.36, 1] });
     return;
   }
   const gs = window.gsap;
-  if (gs) gs.fromTo(modal, { opacity: 0, scale: 0.94, y: 10 }, { opacity: 1, scale: 1, y: 0, duration: 0.38, ease: 'power2.out' });
+  if (gs) gs.fromTo(modal, { opacity: 0, scale: 0.94, y: 16 }, { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: 'power2.out' });
 }
 
 function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function iconsReplace(root) {
@@ -76,15 +108,21 @@ function iconsReplace(root) {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
       lucide.createIcons({ root: root || document });
     }
-  } catch (e) {
-    console.warn('Lucide:', e);
-  }
+  } catch (e) { /* ignore */ }
 }
 
 function pulseBtn(el) {
-  if (prefersReducedMotion()) return;
+  if (prefersReducedMotion() || !el) return;
   const gs = window.gsap;
-  if (gs && el) gs.fromTo(el, { scale: 0.94 }, { scale: 1, duration: 0.38, ease: 'elastic.out(1, 0.55)' });
+  if (gs) gs.fromTo(el, { scale: 0.93 }, { scale: 1, duration: 0.4, ease: 'elastic.out(1, 0.55)' });
+}
+
+function flashBtnSuccess(el) {
+  if (prefersReducedMotion() || !el) return;
+  const gs = window.gsap;
+  if (gs) {
+    gs.fromTo(el, { boxShadow: '0 0 0 0 rgba(34,197,94,0.5)' }, { boxShadow: '0 0 20px 4px rgba(34,197,94,0)', duration: 0.7, ease: 'power2.out' });
+  }
 }
 
 function bindSvcCardMotion(container) {
@@ -92,21 +130,12 @@ function bindSvcCardMotion(container) {
   const gs = window.gsap;
   if (!gs || !container) return;
   container.querySelectorAll('.svc-card').forEach((card) => {
-    card.addEventListener('mouseenter', () => {
-      gs.to(card, {
-        y: -4,
-        boxShadow: '0 14px 32px rgba(0,0,0,0.45)',
-        duration: 0.28,
-        ease: 'power2.out',
-      });
-    });
-    card.addEventListener('mouseleave', () => {
-      gs.to(card, { y: 0, boxShadow: 'none', duration: 0.32, ease: 'power2.out' });
-    });
+    card.addEventListener('mouseenter', () => gs.to(card, { y: -3, boxShadow: '0 8px 24px rgba(0,0,0,0.35)', duration: 0.25, ease: 'power2.out' }));
+    card.addEventListener('mouseleave', () => gs.to(card, { y: 0, boxShadow: 'none', duration: 0.3, ease: 'power2.out' }));
   });
   container.querySelectorAll('.btn-svc').forEach((btn) => {
-    btn.addEventListener('mouseenter', () => gs.to(btn, { scale: 1.06, duration: 0.2, ease: 'power2.out' }));
-    btn.addEventListener('mouseleave', () => gs.to(btn, { scale: 1, duration: 0.2, ease: 'power2.out' }));
+    btn.addEventListener('mouseenter', () => gs.to(btn, { scale: 1.05, duration: 0.18, ease: 'power2.out' }));
+    btn.addEventListener('mouseleave', () => gs.to(btn, { scale: 1, duration: 0.18, ease: 'power2.out' }));
   });
 }
 
@@ -115,8 +144,8 @@ function bindQuickLinkMotion() {
   const gs = window.gsap;
   document.querySelectorAll('.link-quick').forEach((btn) => {
     if (!gs) return;
-    btn.addEventListener('mouseenter', () => gs.to(btn, { scale: 1.04, y: -1, duration: 0.22, ease: 'power2.out' }));
-    btn.addEventListener('mouseleave', () => gs.to(btn, { scale: 1, y: 0, duration: 0.22, ease: 'power2.out' }));
+    btn.addEventListener('mouseenter', () => gs.to(btn, { scale: 1.04, y: -1, duration: 0.2, ease: 'power2.out' }));
+    btn.addEventListener('mouseleave', () => gs.to(btn, { scale: 1, y: 0, duration: 0.2, ease: 'power2.out' }));
   });
 }
 
@@ -210,42 +239,22 @@ async function fillForm(cfg) {
 }
 
 async function refreshMongoAndHttp() {
-  const mongo = await api.mongoCheck();
-  const http = await api.httpAppsStatus();
+  const [mongo, http] = await Promise.all([api.mongoCheck(), api.httpAppsStatus()]);
   const grid = $('status-grid');
   if (!grid) return;
   const cards = [
-    {
-      label: 'MongoDB (ping)',
-      ok: mongo.ok,
-      text: mongo.ok ? mongo.message : mongo.message,
-      sub: mongo.uriMasked || '',
-    },
-    {
-      label: http.backend.label,
-      ok: http.backend.ok,
-      text: http.backend.ok ? `HTTP ${http.backend.status}` : http.backend.error || 'sin respuesta',
-    },
-    {
-      label: http.cocina.label,
-      ok: http.cocina.ok,
-      text: http.cocina.ok ? `HTTP ${http.cocina.status}` : http.cocina.error || 'sin respuesta',
-    },
-    {
-      label: http.expo.label,
-      ok: http.expo.ok,
-      text: http.expo.ok ? `HTTP ${http.expo.status}` : http.expo.error || 'sin respuesta',
-    },
+    { label: 'MongoDB (ping)', ok: mongo.ok, text: mongo.ok ? mongo.message : mongo.message, sub: mongo.uriMasked || '' },
+    { label: http.backend.label, ok: http.backend.ok, text: http.backend.ok ? `HTTP ${http.backend.status}` : http.backend.error || 'sin respuesta' },
+    { label: http.cocina.label, ok: http.cocina.ok, text: http.cocina.ok ? `HTTP ${http.cocina.status}` : http.cocina.error || 'sin respuesta' },
+    { label: http.expo.label, ok: http.expo.ok, text: http.expo.ok ? `HTTP ${http.expo.status}` : http.expo.error || 'sin respuesta' },
   ];
   grid.innerHTML = cards
-    .map(
-      (c) => `
+    .map((c) => `
     <div class="stat-card ${c.ok ? 'stat-ok' : 'stat-bad'}">
       <div class="label">${escapeHtml(c.label)}</div>
       <div class="value">${escapeHtml(c.text)}</div>
       ${c.sub ? `<div class="hint" style="margin-top:6px">${escapeHtml(c.sub)}</div>` : ''}
-    </div>`,
-    )
+    </div>`)
     .join('');
 }
 
@@ -257,9 +266,12 @@ async function refreshServices() {
   row.innerHTML = ['backend', 'cocina', 'expo']
     .map((id) => {
       const s = st[id];
-      return `<div class="svc-card">
+      const dotCls = s.running ? 'running' : 'stopped';
+      const statusLabel = s.running ? `En ejecución (PID ${s.pid})` : 'Detenido';
+      const errorSuffix = s.lastError ? ` — ${escapeHtml(s.lastError)}` : '';
+      return `<div class="svc-card${s.running ? ' svc-card-running' : ''}">
         <h3>${names[id]}</h3>
-        <div class="svc-meta">${s.running ? `En ejecución (PID ${s.pid})` : 'Detenido'}${s.lastError ? ` — ${escapeHtml(s.lastError)}` : ''}</div>
+        <div class="svc-meta"><span class="svc-status-dot ${dotCls}"></span>${statusLabel}${errorSuffix}</div>
         <div class="svc-actions">
           <button type="button" class="btn-svc btn-svc-start" data-start="${id}">
             <i data-lucide="play" class="btn-svc-ico" aria-hidden="true"></i><span>Iniciar</span>
@@ -279,33 +291,58 @@ async function refreshServices() {
     btn.addEventListener('click', async (ev) => {
       pulseBtn(ev.currentTarget);
       await api.serviceStart(btn.getAttribute('data-start'));
-      refreshServices();
+      flashBtnSuccess(ev.currentTarget);
+      await refreshServices();
+      await refreshMongoAndHttp();
+      await refreshGlobalStatusStrip();
     });
   });
   row.querySelectorAll('[data-stop]').forEach((btn) => {
     btn.addEventListener('click', async (ev) => {
       pulseBtn(ev.currentTarget);
       await api.serviceStop(btn.getAttribute('data-stop'));
-      refreshServices();
+      await refreshServices();
+      await refreshMongoAndHttp();
+      await refreshGlobalStatusStrip();
     });
   });
+}
+
+async function refreshGlobalStatusStrip() {
+  const [st, http] = await Promise.all([api.serviceStatus(), api.httpAppsStatus()]);
+  const strip = $('status-strip');
+  if (!strip) return;
+
+  const chips = [
+    { id: 'backend', label: 'Backend', running: st.backend.running, httpOk: http.backend.ok },
+    { id: 'cocina', label: 'Cocina', running: st.cocina.running, httpOk: http.cocina.ok },
+    { id: 'expo', label: 'Mozos', running: st.expo.running, httpOk: http.expo.ok },
+  ];
+
+  strip.innerHTML = chips.map((c) => {
+    let cls = '';
+    let text = 'Detenido';
+    if (c.running && c.httpOk) { cls = 'online'; text = 'Activo'; }
+    else if (c.running) { cls = 'starting'; text = 'Iniciando…'; }
+    else { cls = 'offline'; text = 'Detenido'; }
+    return `<div class="status-chip ${cls}">
+      <span class="status-chip-dot"></span>
+      <span>${c.label}</span>
+      <span style="color:var(--text-muted);font-size:0.72rem">${text}</span>
+    </div>`;
+  }).join('');
 }
 
 function pillHtml(title, st) {
   const ok = st.exists && st.hasPackageJson;
   const cls = ok ? 'ok' : 'bad';
-  const lines = [
-    st.exists ? 'Carpeta: sí' : 'Carpeta: no',
-    st.isGit ? 'Git: sí' : 'Git: no',
-    st.hasPackageJson ? 'package.json: sí' : 'package.json: no',
-  ];
+  const lines = [st.exists ? 'Carpeta: sí' : 'Carpeta: no', st.isGit ? 'Git: sí' : 'Git: no', st.hasPackageJson ? 'package.json: sí' : 'package.json: no'];
   return `<div class="repo-pill ${cls}"><strong>${title}</strong>${lines.join(' · ')}</div>`;
 }
 
 async function refreshRepoStrip(targetId) {
   const st = await api.reposLocalStatus();
-  const html =
-    pillHtml('Backend', st.backend) + pillHtml('Cocina', st.cocina) + pillHtml('Mozos', st.mozos);
+  const html = pillHtml('Backend', st.backend) + pillHtml('Cocina', st.cocina) + pillHtml('Mozos', st.mozos);
   const el = $(targetId);
   if (el) el.innerHTML = html;
 }
@@ -342,18 +379,14 @@ async function refreshGitGrid() {
       <div>${g.dirty ? '⚠ Cambios locales sin commit.' : '✓ Working tree limpio.'}</div>
       <div class="git-out">${escapeHtml(g.statusLine || g.error || '')}</div>
       <div class="git-actions">
-        <button type="button" class="ghost" data-fetch="${r.key}">git fetch</button>
-        <button type="button" class="ghost" data-check="${r.key}">Comprobar actualizaciones</button>
-        <button type="button" class="primary" data-pull="${r.key}">git pull</button>
+        <button type="button" class="btn btn-ghost" data-fetch="${r.key}">git fetch</button>
+        <button type="button" class="btn btn-ghost" data-check="${r.key}">Comprobar actualizaciones</button>
+        <button type="button" class="btn btn-primary" data-pull="${r.key}">git pull</button>
       </div>
     `;
     card.querySelector(`[data-fetch="${r.key}"]`).addEventListener('click', async () => {
       const out = await api.gitFetch(r.key);
-      appendLogLine({
-        service: 'git',
-        line: `${r.key} fetch: ${out.ok ? 'ok' : 'falló'} ${out.stderr || out.stdout}`,
-        ts: Date.now(),
-      });
+      appendLogLine({ service: 'git', line: `${r.key} fetch: ${out.ok ? 'ok' : 'falló'} ${out.stderr || out.stdout}`, ts: Date.now() });
       refreshGitGrid();
     });
     card.querySelector(`[data-check="${r.key}"]`).addEventListener('click', async () => {
@@ -363,11 +396,7 @@ async function refreshGitGrid() {
     card.querySelector(`[data-pull="${r.key}"]`).addEventListener('click', async () => {
       if (g.dirty && !window.confirm(`${r.title}: hay cambios locales. ¿Hacer git pull?`)) return;
       const out = await api.gitPull(r.key);
-      appendLogLine({
-        service: 'git',
-        line: `${r.key} pull: ${out.ok ? 'ok' : 'falló'} ${out.stderr || out.stdout}`,
-        ts: Date.now(),
-      });
+      appendLogLine({ service: 'git', line: `${r.key} pull: ${out.ok ? 'ok' : 'falló'} ${out.stderr || out.stdout}`, ts: Date.now() });
       lastUpdates[r.key] = await api.gitCheckUpdates(r.key);
       refreshGitGrid();
     });
@@ -386,8 +415,7 @@ async function refreshDataBanners() {
   if (!bm) return;
   if (man) {
     bm.classList.remove('hidden');
-    bm.textContent =
-      'Manifiesto detectado. Para instalación limpia evalúe backup y eliminación del manifiesto; no vacía MongoDB.';
+    bm.textContent = 'Manifiesto detectado. Para instalación limpia evalúe backup y eliminación del manifiesto; no vacía MongoDB.';
   } else if (hasOther) {
     bj.classList.remove('hidden');
     bj.textContent = `Hay ${data.files.length} JSON en data/ (semilla). Sin manifiesto configurado.`;
@@ -397,9 +425,7 @@ async function refreshDataBanners() {
   }
   const ul = $('data-file-list');
   if (ul) {
-    ul.innerHTML = (data.files || [])
-      .map((f) => `<li>${escapeHtml(f.name)} — ${f.size} bytes</li>`)
-      .join('') || '<li>(vacío)</li>';
+    ul.innerHTML = (data.files || []).map((f) => `<li>${escapeHtml(f.name)} — ${f.size} bytes</li>`).join('') || '<li>(vacío)</li>';
   }
 }
 
@@ -415,11 +441,188 @@ function setDetectHint(text) {
   if (el) el.textContent = `Identificador: ${text}`;
 }
 
+/* ════════════════════════════════════════════
+   START ALL / STOP ALL with progress UI
+   ════════════════════════════════════════════ */
+let startingAll = false;
+
+function setLaunchStep(stepId, state, statusText) {
+  const el = document.getElementById(stepId);
+  if (!el) return;
+  el.className = 'launch-step ' + state; // starting | running | error | skipped | ''
+  const statusEl = el.querySelector('.launch-step-status');
+  if (statusEl) statusEl.textContent = statusText;
+}
+
+function showLaunchProgress(progressId, stepsId) {
+  const progress = document.getElementById(progressId);
+  const steps = document.getElementById(stepsId);
+  if (progress) { progress.classList.remove('hidden'); }
+  if (steps) { steps.classList.remove('hidden'); }
+}
+
+function hideLaunchProgress(progressId, stepsId) {
+  const progress = document.getElementById(progressId);
+  const steps = document.getElementById(stepsId);
+  if (progress) { progress.classList.add('hidden'); }
+  if (steps) { steps.classList.add('hidden'); }
+}
+
+function setProgressBar(progressBarId, pct, extraClass) {
+  const bar = document.getElementById(progressBarId);
+  if (!bar) return;
+  bar.style.width = pct + '%';
+  bar.className = 'launch-progress-bar';
+  if (extraClass) bar.classList.add(extraClass);
+}
+
+async function startAllServices() {
+  if (startingAll) return;
+  startingAll = true;
+
+  const includeExpo = $('start-all-include-expo')?.checked
+    ?? $('start-all-include-expo-svc')?.checked
+    ?? true;
+  const cfg = await api.getConfig();
+  const delay = cfg.delaysMs?.betweenServiceStarts ?? 2000;
+
+  // Determine which progress UI set is visible
+  const resumenProgress = 'launch-progress';
+  const resumenSteps = 'launch-steps';
+  const svcProgress = 'launch-progress-svc';
+  const svcSteps = 'launch-steps-svc';
+
+  // Show both progress UIs
+  showLaunchProgress(resumenProgress, resumenSteps);
+  showLaunchProgress(svcProgress, svcSteps);
+
+  // Reset steps
+  const serviceIds = ['backend', 'cocina', ...(includeExpo ? ['expo'] : [])];
+  const allStepIds = [
+    { key: 'backend', ids: ['step-backend', 'step-svc-backend'] },
+    { key: 'cocina', ids: ['step-cocina', 'step-svc-cocina'] },
+    { key: 'expo', ids: ['step-expo', 'step-svc-expo'] },
+  ];
+
+  for (const s of allStepIds) {
+    const skip = s.key === 'expo' && !includeExpo;
+    for (const id of s.ids) setLaunchStep(id, skip ? 'skipped' : '', skip ? 'Omitido' : 'Esperando…');
+  }
+  if (!includeExpo) {
+    setLaunchStep('step-expo', 'skipped', 'Omitido');
+    setLaunchStep('step-svc-expo', 'skipped', 'Omitido');
+  }
+
+  setProgressBar('launch-progress-bar', 0);
+  setProgressBar('launch-progress-bar-svc', 0);
+
+  pulseBtn($('btn-start-all') || $('btn-start-all-svc'));
+  disableStartButtons(true);
+  appendLogLine({ service: 'launcher', line: 'Iniciando todos los servicios…', ts: Date.now() });
+
+  const total = serviceIds.length;
+  const pctPerStep = Math.floor(100 / total);
+  let completed = 0;
+
+  for (const key of serviceIds) {
+    // Mark as starting
+    const stepIds = allStepIds.find(s => s.key === key).ids;
+    for (const id of stepIds) setLaunchStep(id, 'starting', 'Iniciando…');
+
+    const animateBar = key; // reference
+    setProgressBar('launch-progress-bar', Math.min(completed * pctPerStep + pctPerStep / 2, 90), 'indeterminate');
+    setProgressBar('launch-progress-bar-svc', Math.min(completed * pctPerStep + pctPerStep / 2, 90), 'indeterminate');
+
+    const result = await api.serviceStart(key);
+    const statusText = result.ok ? 'En ejecución' : (result.error === 'already_running' ? 'Ya estaba activo' : (result.error || 'Error'));
+
+    appendLogLine({ service: 'launcher', line: `${key}: ${statusText}`, ts: Date.now() });
+
+    if (result.ok || result.error === 'already_running') {
+      for (const id of stepIds) setLaunchStep(id, 'running', result.error === 'already_running' ? 'Ya activo' : 'En ejecución ✓');
+      completed++;
+      setProgressBar('launch-progress-bar', Math.min(Math.round(completed / total * 100), 95));
+      setProgressBar('launch-progress-bar-svc', Math.min(Math.round(completed / total * 100), 95));
+    } else {
+      for (const id of stepIds) setLaunchStep(id, 'error', result.error || 'Error');
+      completed++;
+      setProgressBar('launch-progress-bar', Math.min(Math.round(completed / total * 100), 95));
+      setProgressBar('launch-progress-bar-svc', Math.min(Math.round(completed / total * 100), 95));
+    }
+
+    // Wait between services (except after last)
+    if (key !== serviceIds[serviceIds.length - 1]) {
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  // Now verify HTTP availability for backend
+  setProgressBar('launch-progress-bar', 97);
+  setProgressBar('launch-progress-bar-svc', 97);
+
+  await refreshServices();
+  await refreshMongoAndHttp();
+  await refreshGlobalStatusStrip();
+
+  // Complete
+  setProgressBar('launch-progress-bar', 100, 'complete');
+  setProgressBar('launch-progress-bar-svc', 100, 'complete');
+
+  celebrateLite();
+  disableStartButtons(false);
+  startingAll = false;
+
+  // Hide progress after a moment
+  setTimeout(() => {
+    hideLaunchProgress(resumenProgress, resumenSteps);
+    hideLaunchProgress(svcProgress, svcSteps);
+  }, 2500);
+}
+
+function disableStartButtons(disabled) {
+  const btns = [$('btn-start-all'), $('btn-start-all-svc')];
+  btns.forEach((b) => { if (b) b.disabled = disabled; });
+}
+
+async function stopAllServices() {
+  pulseBtn($('btn-stop-all') || $('btn-stop-all-svc'));
+  appendLogLine({ service: 'launcher', line: 'Deteniendo todos los servicios…', ts: Date.now() });
+
+  for (const s of ['backend', 'cocina', 'expo']) {
+    await api.serviceStop(s);
+  }
+
+  await refreshServices();
+  await refreshMongoAndHttp();
+  await refreshGlobalStatusStrip();
+  appendLogLine({ service: 'launcher', line: 'Todos los servicios detenidos.', ts: Date.now() });
+}
+
+/* ════════════════════════════════════════════
+   SECTION TITLES
+   ════════════════════════════════════════════ */
+const sectionTitles = {
+  resumen: 'Panel de control',
+  servicios: 'Servicios',
+  rutas: 'Rutas e instalación',
+  git: 'Git y actualizaciones',
+  datos: 'Datos JSON',
+  mozos: 'Mozos (APK)',
+  avanzado: 'Configuración avanzada',
+  registro: 'Registro',
+};
+
+/* ════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════ */
 async function init() {
+  await runSplash();
+
   document.querySelectorAll('.nav-item').forEach((btn) => {
     btn.addEventListener('click', () => {
       const sid = btn.getAttribute('data-section');
       showSection(sid);
+      $('topbar-title').textContent = sectionTitles[sid] || 'Panel de control';
       entranceMainSection(sid);
     });
   });
@@ -464,6 +667,21 @@ async function init() {
     await refreshGitGrid();
     await refreshDataBanners();
     await refreshRepoStrip('repo-strip-summary');
+    pulseBtn($('btn-refresh'));
+  });
+
+  // Start / Stop ALL
+  $('btn-start-all')?.addEventListener('click', startAllServices);
+  $('btn-stop-all')?.addEventListener('click', stopAllServices);
+  $('btn-start-all-svc')?.addEventListener('click', startAllServices);
+  $('btn-stop-all-svc')?.addEventListener('click', stopAllServices);
+
+  // Sync include-expo checkboxes
+  $('start-all-include-expo')?.addEventListener('change', (e) => {
+    if ($('start-all-include-expo-svc')) $('start-all-include-expo-svc').checked = e.target.checked;
+  });
+  $('start-all-include-expo-svc')?.addEventListener('change', (e) => {
+    if ($('start-all-include-expo')) $('start-all-include-expo').checked = e.target.checked;
   });
 
   $('btn-detect-only').addEventListener('click', async () => {
@@ -471,11 +689,7 @@ async function init() {
     const box = $('detect-preview');
     box.classList.remove('hidden');
     if (d.ok) {
-      box.textContent = JSON.stringify(
-        { root: d.root, source: d.source, score: d.score, paths: d.paths },
-        null,
-        2,
-      );
+      box.textContent = JSON.stringify({ root: d.root, source: d.source, score: d.score, paths: d.paths }, null, 2);
       setDetectHint(d.source || 'encontrado');
     } else {
       box.textContent = `No se encontró el trío de carpetas. Candidatos analizados: ${d.tried ?? 0}. Defina rutas o use clonar.`;
@@ -487,20 +701,12 @@ async function init() {
     const r = await api.pathsApplyDetect();
     if (r.ok) {
       celebrateLite();
-      appendLogLine({
-        service: 'launcher',
-        line: `Rutas guardadas desde: ${r.source} → ${r.root}`,
-        ts: Date.now(),
-      });
+      appendLogLine({ service: 'launcher', line: `Rutas guardadas desde: ${r.source} → ${r.root}`, ts: Date.now() });
       setDetectHint(r.source || 'guardado');
       await fillForm(await api.getConfig());
       $('detect-preview').classList.add('hidden');
     } else {
-      appendLogLine({
-        service: 'launcher',
-        line: 'Detección automática: sin resultado. Revise rutas o clone los repos.',
-        ts: Date.now(),
-      });
+      appendLogLine({ service: 'launcher', line: 'Detección automática: sin resultado. Revise rutas o clone los repos.', ts: Date.now() });
       $('detect-preview').classList.remove('hidden');
       $('detect-preview').textContent = JSON.stringify(r, null, 2);
       setDetectHint('sin resultado');
@@ -526,11 +732,7 @@ async function init() {
   $('btn-clone-all').addEventListener('click', async () => {
     if (!window.confirm('¿Clonar los repositorios que falten en la carpeta padre indicada?')) return;
     const r = await api.reposCloneAll(cloneParent());
-    appendLogLine({
-      service: 'git',
-      line: `Clonación masiva: ${JSON.stringify(r.results || r)}`,
-      ts: Date.now(),
-    });
+    appendLogLine({ service: 'git', line: `Clonación masiva: ${JSON.stringify(r.results || r)}`, ts: Date.now() });
     await fillForm(await api.getConfig());
     await refreshRepoStrip('repo-strip-summary');
   });
@@ -555,16 +757,20 @@ async function init() {
     await checkUpdatesAll();
   });
 
+  async function openQuickLink(target) {
+    const cfg = await api.getConfig();
+    const backendPort = cfg.ports?.backend ?? 3000;
+    const cocinaPort = cfg.ports?.cocina ?? 3001;
+    const base = (cfg.publicBaseUrl || `http://127.0.0.1:${backendPort}`).replace(/\/$/, '');
+    let url = base;
+    if (target === 'cocina') url = `http://127.0.0.1:${cocinaPort}/`;
+    else if (target === 'login') url = `${base}/login`;
+    else if (target === 'root') url = `${base}/`;
+    await api.openExternal(url);
+  }
+
   document.querySelectorAll('[data-open]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const base = $('public-base-url').value.trim() || 'http://127.0.0.1:3000';
-      const u = btn.getAttribute('data-open');
-      let url = base.replace(/\/$/, '');
-      if (u === 'cocina') url = `http://127.0.0.1:${$('port-cocina').value || 3001}/`;
-      else if (u === 'login') url = `${url}/login`;
-      else if (u === 'root') url = `${url}/`;
-      await api.openExternal(url);
-    });
+    btn.addEventListener('click', () => openQuickLink(btn.getAttribute('data-open')));
   });
 
   $('btn-open-data')?.addEventListener('click', () => api.openDataFolder());
@@ -592,6 +798,7 @@ async function init() {
   await refreshGitGrid();
   await refreshDataBanners();
   await refreshRepoStrip('repo-strip-summary');
+  await refreshGlobalStatusStrip();
 
   const d0 = await api.pathsAutoDetect();
   if (d0.ok) setDetectHint(d0.source || 'OK');
@@ -600,7 +807,6 @@ async function init() {
   const mainCol = document.querySelector('.main-col');
   if (mainCol) iconsReplace(mainCol);
   bindQuickLinkMotion();
-  if ($('wizard')?.classList.contains('hidden')) entranceMainSection('resumen');
 
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(() => loadMiniAnimate(), { timeout: 4000 });
@@ -611,6 +817,7 @@ async function init() {
   setInterval(async () => {
     await refreshMongoAndHttp();
     await refreshServices();
+    await refreshGlobalStatusStrip();
   }, 5000);
   setInterval(() => refreshGitGrid(), 25000);
 }

@@ -85,6 +85,7 @@ async function runAutoStartServices() {
   const b = pm.start('backend', {
     cwd: cfg.paths.backend,
     npmScript: cfg.npmScripts?.backend || 'start',
+    env: { PORT: String(cfg.ports?.backend ?? 3000) },
   });
   if (!b.ok) return;
 
@@ -97,6 +98,7 @@ async function runAutoStartServices() {
   pm.start('cocina', {
     cwd: cfg.paths.cocina,
     npmScript: cfg.npmScripts?.cocina || 'start',
+    env: { PORT: String(cfg.ports?.cocina ?? 3001) },
   });
 
   if (cfg.autoStartExpoWithServices) {
@@ -104,6 +106,7 @@ async function runAutoStartServices() {
     pm.start('expo', {
       cwd: cfg.paths.mozos,
       npmScript: cfg.npmScripts?.expo || 'start',
+      env: { PORT: String(cfg.ports?.expoMetro ?? 8081) },
     });
   }
 }
@@ -115,12 +118,15 @@ function createWindow() {
     minWidth: 880,
     minHeight: 640,
     show: false,
+    backgroundColor: '#06090f',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
     title: 'Las Gambusinas — Launcher',
+    frame: true,
+    autoHideMenuBar: true,
   });
 
   const rendererIndex = path.join(app.getAppPath(), 'renderer', 'index.html');
@@ -200,13 +206,13 @@ ipcMain.handle('autostart-get', () => ({
 ipcMain.handle('service-start', (_e, service) => {
   const cfg = loadConfig();
   if (service === 'backend') {
-    return pm.start('backend', { cwd: cfg.paths.backend, npmScript: cfg.npmScripts?.backend || 'start' });
+    return pm.start('backend', { cwd: cfg.paths.backend, npmScript: cfg.npmScripts?.backend || 'start', env: { PORT: String(cfg.ports?.backend ?? 3000) } });
   }
   if (service === 'cocina') {
-    return pm.start('cocina', { cwd: cfg.paths.cocina, npmScript: cfg.npmScripts?.cocina || 'start' });
+    return pm.start('cocina', { cwd: cfg.paths.cocina, npmScript: cfg.npmScripts?.cocina || 'start', env: { PORT: String(cfg.ports?.cocina ?? 3001) } });
   }
   if (service === 'expo') {
-    return pm.start('expo', { cwd: cfg.paths.mozos, npmScript: cfg.npmScripts?.expo || 'start' });
+    return pm.start('expo', { cwd: cfg.paths.mozos, npmScript: cfg.npmScripts?.expo || 'start', env: { PORT: String(cfg.ports?.expoMetro ?? 8081) } });
   }
   return { ok: false, error: 'unknown_service' };
 });

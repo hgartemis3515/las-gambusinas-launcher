@@ -16,25 +16,25 @@ class ProcessManager extends EventEmitter {
 
   /**
    * @param {'backend'|'cocina'|'expo'} service
-   * @param {{ cwd: string, npmScript: string }} opts
+   * @param {{ cwd: string, npmScript: string, env?: Record<string, string> }} opts
    */
   start(service, opts) {
     if (this.procs[service]) {
       this.emit('log', { service, line: `[launcher] ${service} ya está en ejecución.`, ts: Date.now() });
       return { ok: false, error: 'already_running' };
     }
-    const { cwd, npmScript } = opts;
+    const { cwd, npmScript, env: extraEnv } = opts;
     const resolved = cwd ? path.resolve(cwd) : '';
     if (!resolved || !fs.existsSync(resolved)) {
       const msg = `[launcher] ${service}: la carpeta no existe: ${cwd || '(vacía)'}`;
       this.emit('log', { service, line: msg, ts: Date.now() });
       return { ok: false, error: 'cwd_missing' };
     }
+    const procEnv = { ...process.env, FORCE_COLOR: '0', ...extraEnv };
     const proc = spawn('npm', ['run', npmScript], {
       cwd: resolved,
-      cwd,
       shell: true,
-      env: { ...process.env, FORCE_COLOR: '0' },
+      env: procEnv,
       windowsHide: true,
     });
     this.procs[service] = proc;
