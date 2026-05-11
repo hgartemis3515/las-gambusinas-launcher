@@ -125,6 +125,7 @@ Los nombres de carpetas esperadas en detección y defaults son:
 ## 6. Gestión de procesos (ProcessManager)
 
 - Cada servicio es un hijo **`npm run <script>`** con `shell: true`, `windowsHide: true`, `cwd` resuelto.
+- **Variable de entorno `PORT`:** al iniciar cada servicio se le pasa el puerto configurado como `PORT` en `env`, garantizando que cocina use su puerto (3001) y no el del backend (3000).
 - **Stdout/stderr** se reenvían como eventos `log` con `{ service, line, ts }`.
 - **Inicio:** rechaza si ya hay proceso o si `cwd` no existe (`cwd_missing`, `already_running`).
 - **Parada:** `tree-kill` con `SIGTERM` sobre el PID del `npm`.
@@ -201,16 +202,18 @@ Canal (handler) | Función resumida |
 
 Secciones de navegación lateral:
 
-1. **Resumen** — tarjetas Mongo + HTTP, franja de estado local de repos, banners de datos, enlaces rápidos.
+1. **Resumen** — strips de estado global (chips Backend/Cocina/Mozos con dot animado), tarjeta "Control centralizado" con "Iniciar todo" (barra de progreso animada con pasos por servicio), tarjetas MongoDB y HTTP, repositorios, enlaces rápidos.
 2. **Rutas e instalación** — detectar/guardar rutas, clonar, rutas manuales, URLs de clone.
-3. **Servicios** — tarjetas iniciar/detener por servicio.
+3. **Servicios** — "Inicio rápido" con barra de progreso animada y pasos por servicio, tarjetas individuales iniciar/detener.
 4. **Git y actualizaciones** — por repo: fetch, comprobar, pull con confirmación si dirty.
 5. **Datos JSON** — listado, abrir carpeta, borrar manifiesto.
 6. **Mozos (APK)** — botones EAS preview/production.
-7. **Avanzado** — autostart Windows, autostart servicios, delays, Mongo flags, scripts npm, parar todo al cerrar.
-8. **Registro** — área de texto con logs en tiempo real (polling 5 s de estado HTTP/servicios; Git cada 25 s).
+7. **Avanzado** — organizado por servicio (Backend, Cocina, Mozos) con puerto, script npm y enlace rápido propio; datos y manifiesto; inicio automático y MongoDB.
+8. **Registro** — área de texto con logs en tiempo real.
 
-**Asistente primera vez:** overlay hasta `firstLaunchCompletedAt` en state (y opción de no volver a mostrar escribiendo `showFirstRunWizard: false`).
+**Splash screen animada** al iniciar: anillo SVG + barra de progreso + texto de estado, transición GSAP al dashboard.
+
+**Asistente primera vez:** overlay hasta `firstLaunchCompletedAt` en state.
 
 ---
 

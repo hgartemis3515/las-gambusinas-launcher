@@ -1,80 +1,121 @@
-# Las Gambusinas — Launcher (Electron)
+# Las Gambusinas Launcher
 
 [![Repo](https://img.shields.io/badge/GitHub-hgartemis3515%2Flas--gambusinas--launcher-181717?logo=github)](https://github.com/hgartemis3515/las-gambusinas-launcher)
 
-Panel nativo Windows para arrancar/detener **backend**, **app cocina** y **Expo (mozos)**, comprobar **MongoDB**, ver estado HTTP, ejecutar **git fetch/pull** en los tres repos, gestionar el manifiesto **`data/data.json`**, disparar **EAS Build** (APK) y opciones de **inicio automático**.
+Panel nativo Windows para arrancar, detener y supervisar **Backend**, **App Cocina** y **Expo (Mozos)**, con MongoDB, Git, datos y builds APK.
 
-## Publicar en GitHub (`hgartemis3515/las-gambusinas-launcher`)
+## Novedades v1.1.0
 
-Desde esta máquina no hay `gh` ni token disponible para crear el remoto automáticamente. Hazlo una vez en el navegador y luego empuja el código ya versionado en esta carpeta.
+- **Splash screen animada** con anillo de progreso y transicion al dashboard.
+- **Barra de progreso animada** en "Iniciar todo" con pasos individuales por servicio (esperando, iniciando, activo, error, omitido).
+- **Status strip global** en Resumen: chips Backend/Cocina/Mozos con indicador en tiempo real.
+- **Correccion de puertos**: cada servicio se lanza con `PORT` como variable de entorno, respetando la configuracion del launcher.
+- **Panel Avanzado reorganizado** por servicio con puerto, script npm y enlace rapido.
+- **Enlaces rapidos corregidos**: Cocina abre en su puerto configurado.
+- **Diseno oscuro profesional** con variables CSS, scrollbar custom y animaciones GSAP.
 
-1. Crea el repositorio vacío (sin README ni .gitignore) en: [github.com/new](https://github.com/new) con nombre **`las-gambusinas-launcher`** y propietario **`hgartemis3515`**.
-2. En PowerShell, dentro de `launcher/`:
-   ```powershell
-   git remote add origin https://github.com/hgartemis3515/las-gambusinas-launcher.git
-   git branch -M main
-   git push -u origin main
-   ```
-   Si usas SSH: `git remote add origin git@github.com:hgartemis3515/las-gambusinas-launcher.git`
+## Instalacion
 
-Si el monorepo padre ya es un repo Git y `launcher` aparece como carpeta sin seguimiento, puedes ignorar `launcher/` en el padre o mantener solo este `.git` dentro de `launcher` para publicar el iniciador por separado.
+### Desde el instalador (.exe)
 
-## Requisitos
+1. Descarga `Las-Gambusinas-Launcher-Setup-1.1.0.exe` desde [Releases](https://github.com/hgartemis3515/las-gambusinas-launcher/releases).
+2. Ejecuta el instalador. Puedes cambiar la carpeta de instalacion.
+3. Se crean accesos directos en Escritorio y Menu Inicio.
+4. Abre "Las Gambusinas Launcher" desde el acceso directo.
 
-- Windows 10+ (inicio automático y accesos directos probados en Windows).
-- Node.js LTS y npm en el `PATH`.
-- Git en el `PATH` (para la sección de repositorios).
-- MongoDB accesible según el `.env` del backend (`DBLOCAL` o `MONGODB_URI`).
-- Para APK: cuenta Expo y `eas login` en la máquina; variable `EXPO_TOKEN` si se usa CI.
+### Portable (sin instalacion)
 
-## Interfaz
+1. Descarga `Las-Gambusinas-Launcher-1.1.0-Portable.exe` desde [Releases](https://github.com/hgartemis3515/las-gambusinas-launcher/releases).
+2. Ejecuta directamente. No requiere instalacion.
 
-Panel tipo **dashboard** con **barra lateral**: Resumen, Rutas e instalación (detección automática del monorepo, clonado Git), Servicios, Git y actualizaciones (`fetch` + commits detrás del remoto), Datos JSON, Mozos (APK), Avanzado y Registro.
-
-**Motion / iconos (alineado con las 3 apps):** el renderer carga **GSAP** y **Lucide** desde `node_modules` (misma familia que backend, `appcocina` y Expo mozos). Enlaces rápidos al **login** del dashboard (`/login`), no a `/admin`.
-
-Las URLs en `cloneUrls` son plantillas (`hgartemis3515/...`); cámbialas en la UI o en `launcher-config.json` si tus repos tienen otro nombre o son privados (necesitarás credenciales Git configuradas).
-
-**Backend y reinicios:** el launcher usa por defecto `npm run start` (sin nodemon). Si usas `dev`, nodemon puede reiniciar al escribir `data/*.json`; el backend incluye `nodemon.json` que solo vigila `index.js` y `src/`.
-
-## Uso en desarrollo
-
-Desde la carpeta `launcher/`:
+### Desde codigo fuente (desarrollo)
 
 ```bash
+cd launcher
 npm install
 npm start
 ```
 
-La configuración se guarda en `%APPDATA%\LasGambusinas\launcher-config.json`. El estado del asistente inicial en `launcher-state.json` en la misma carpeta.
+Requisitos: Node.js 18+, npm, Git en PATH, MongoDB accessible.
 
-## Empaquetar `.exe` (Windows x64)
+## Uso
+
+### Primera vez
+
+Al abrir el launcher aparece un asistente que te guia para:
+1. Detectar o configurar las rutas de los 3 repos.
+2. Clonar los repos si faltan.
+3. Verificar que MongoDB este accesible.
+
+### Iniciar servicios
+
+- **"Iniciar todo"** arranca Backend, Cocina y (opcionalmente) Mozos en secuencia con barra de progreso animada.
+- Checkbox para incluir/excluir Mozos (Expo).
+- En la seccion Servicios, cada servicio tiene botones Iniciar/Detener individuales.
+- En Avanzado, activa "Al abrir: iniciar backend y cocina" para auto-inicio.
+
+### Configuracion por servicio (Avanzado)
+
+Cada servicio tiene su propio bloque en Avanzado:
+- **Backend**: puerto (default 3000), script npm, URL base.
+- **Cocina**: puerto (default 3001), script npm, enlace directo.
+- **Mozos (Expo)**: puerto Metro (default 8081), script npm.
+
+Los puertos se pasan como variable de entorno `PORT` al iniciar cada servicio.
+
+### Git y actualizaciones
+
+En "Git y actualizaciones": `fetch` + comprobar si hay commits nuevos, y `pull` para actualizar. Clonar los 3 repos desde "Rutas e instalacion".
+
+### Build APK (Mozos)
+
+Requiere `eas login` previo. Botones "Build Android - preview" y "Build Android - production" en la seccion Mozos.
+
+## Empaquetar .exe
 
 ```bash
 npm run dist
 ```
 
-Antes de empaquetar, `predist` intenta cerrar **`Las Gambusinas Launcher.exe`** si sigue abierto (suele bloquear `dist\win-unpacked\resources\app.asar`). Si el error *“cannot access the file because it is being used by another process”* continúa: cierre el Explorador de archivos en `launcher\dist\`, desactive un momento el antivirus sobre esa carpeta o reinicie el terminal tras cerrar la app.
+Genera en `dist/`:
+- **NSIS installer** (Setup .exe con carpeta personalizable)
+- **Portable** (.exe unico, sin instalacion)
+- **win-unpacked/** (carpeta descomprimida para debug)
 
-Salida en `launcher/dist/`:
+El script `predist` cierra el launcher si esta abierto para evitar bloqueos de archivo.
 
-| Archivo | Uso |
-|---------|-----|
-| **`Las Gambusinas Launcher Setup 1.0.0.exe`** | Instalador NSIS (elige carpeta, accesos directos). |
-| **`Las Gambusinas Launcher 1.0.0.exe`** | **Portable** (un solo ejecutable, sin instalador). |
-| **`win-unpacked/`** | Carpeta descomprimida para pruebas o depuración. |
+## Rutas del monorepo
 
-El script `scripts/create-shortcut.ps1` se copia a `resources/scripts/` en el build para el inicio automático con Windows.
+Por defecto, el launcher busca los 3 proyectos en `%USERPROFILE%\PROYECTOGAMBUSINAS\`.
 
-### Rutas con el `.exe` instalado
+Alternativas:
+- Ajustar rutas en "Rutas e instalacion" del launcher.
+- Definir la variable de entorno `LAUNCHER_MONOREPO_ROOT` con la ruta absoluta al monorepo.
 
-Por defecto, la primera ejecución asume el monorepo en **`%USERPROFILE%\PROYECTOGAMBUSINAS`** (tres carpetas: `Backend-LasGambusinas`, `appcocina`, `Las-Gambusinas`). Si tu código está en otro disco o ruta:
+## Configuracion
 
-- Ajusta las rutas en **Configuración** del launcher y guarda, **o**
-- Define la variable de entorno del sistema **`LAUNCHER_MONOREPO_ROOT`** con la ruta absoluta al monorepo antes de abrir el launcher.
+Se guarda en `%APPDATA%\LasGambusinas\launcher-config.json`. Campos principales:
+
+| Campo | Default | Descripcion |
+|-------|---------|-------------|
+| `ports.backend` | `3000` | Puerto HTTP del backend |
+| `ports.cocina` | `3001` | Puerto HTTP de cocina |
+| `ports.expoMetro` | `8081` | Puerto Metro de Expo |
+| `npmScripts.backend` | `start` | Script npm para backend |
+| `npmScripts.cocina` | `start` | Script npm para cocina |
+| `npmScripts.expo` | `start` | Script npm para Expo |
+| `autoStartServicesOnLauncherOpen` | `false` | Auto-iniciar al abrir launcher |
+| `autoStartExpoWithServices` | `false` | Incluir Expo en auto-inicio |
+| `stopAllOnQuit` | `true` | Detener servicios al cerrar launcher |
+| `mongodb.checkBeforeBackendStart` | `true` | Comprobar Mongo antes de backend |
 
 ## Notas
 
-- Borrar **`data/data.json`** (manifiesto) no vacía **MongoDB**; el panel lo indica antes de eliminar.
-- El comprobador de MongoDB usa **mongoose** en el proceso del launcher (no requiere `mongosh`).
-- **Metro** suele usar el puerto **8081**; si Expo usa otro, ajuste `ports.expoMetro` en la config y guarde.
+- Borrar `data/data.json` (manifiesto) **no vacia MongoDB**.
+- MongoDB se comprueba con **mongoose** (no requiere `mongosh`).
+- Los puertos se respetan al iniciar: el launcher pasa `PORT` como variable de entorno a cada servicio.
+- Auto-inicio con Windows crea un `.lnk` en la carpeta Startup del Menu Inicio.
+
+## Licencia
+
+Proyecto privado. Todos los derechos reservados.
