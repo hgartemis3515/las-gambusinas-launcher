@@ -124,7 +124,7 @@
 
         <main class="content">
           <!-- ═══ RESUMEN ═══ -->
-          <section id="section-resumen" class="section hidden">
+          <section id="section-resumen" class="section">
             <div id="banner-manifest" class="banner banner-warn hidden"></div>
             <div id="banner-json" class="banner banner-info hidden"></div>
             <div id="banner-clean" class="banner banner-ok hidden"></div>
@@ -269,7 +269,13 @@
               <pre id="detect-preview" class="preview-box hidden"></pre>
             </div>
 
-            <div class="panel">
+            <div class="panel" id="panel-npm-install">
+              <h2>Descargar e instalar dependencias</h2>
+              <p class="hint">Instala <code>node_modules</code> en cada servicio. Se deshabilita si ya está instalado en su ubicación.</p>
+              <div class="npm-install-grid" id="npm-install-grid"></div>
+            </div>
+
+            <div class="panel" id="panel-clone-section">
               <h2>Instalación por Git (clonar)</h2>
               <p class="hint">
                 Si falta algún repo, define la <strong>carpeta padre</strong> y las URLs. <code>git clone --depth 1</code>.
@@ -333,10 +339,9 @@
           <section id="section-git" class="section hidden">
             <div class="panel">
               <h2>Git y actualizaciones</h2>
-              <p class="hint">Primero <strong>Comprobar actualizaciones</strong> (hace <code>git fetch</code>). Luego puede hacer pull si no hay cambios locales.</p>
+              <p class="hint">Compruebe si hay actualizaciones disponibles y aplique <code>git pull</code> si lo desea.</p>
               <div class="row" style="margin-bottom: 12px">
                 <button type="button" id="btn-check-updates-all" class="btn btn-primary">Comprobar actualizaciones (los 3)</button>
-                <button type="button" id="btn-fetch-all" class="btn btn-ghost">git fetch (los 3)</button>
               </div>
               <div class="git-grid" id="git-grid"></div>
             </div>
@@ -369,6 +374,12 @@
 
           <!-- ═══ AVANZADO ═══ -->
           <section id="section-avanzado" class="section hidden">
+            <!-- Visibilidad de sección de clonación -->
+            <div class="panel">
+              <h2><i data-lucide="eye" class="panel-icon"></i> Visibilidad de secciones</h2>
+              <label class="check row-check"><input type="checkbox" id="cfg-show-clone-section" /> Mostrar sección "Instalación por Git (Clonar)" en Rutas e instalación</label>
+            </div>
+
             <!-- Backend -->
             <div class="panel">
               <h2><i data-lucide="server" class="panel-icon"></i> Backend</h2>

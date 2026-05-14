@@ -441,3 +441,43 @@ ipcMain.handle('git-check-updates', async (_e, repoKey) => {
   const dir = cfg.paths[repoKey];
   return gitCheckUpdates(dir, cfg.git?.executable || 'git');
 });
+
+ipcMain.handle('npm-install', async (_e, serviceKey) => {
+  const cfg = loadConfig();
+  const keyMap = { backend: 'backend', cocina: 'cocina', expo: 'mozos' };
+  const dir = cfg.paths[keyMap[serviceKey]];
+  if (!dir) return { ok: false, error: 'Ruta no configurada para ' + serviceKey };
+  const fs = require('fs');
+  if (!fs.existsSync(dir)) return { ok: false, error: 'Carpeta no existe: ' + dir };
+  const { spawn } = require('child_process');
+  return new Promise((resolve) => {
+    const proc = spawn('npm', ['install'], { cwd: dir, shell: true, windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); pushLog({ service: serviceKey, line: `[npm install] ${d.toString().trim()}`, ts: Date.now() }); });
+    proc.stderr.on('data', (d) => { stderr += d.toString(); pushLog({ service: serviceKey, line: `[npm install] ${d.toString().trim()}`, ts: Date.now() }); });
+    proc.on('close', (code) => {
+      resolve({ ok: code === 0, code, stdout, stderr });
+    });
+    proc.on('error', (err) => {
+      resolve({ ok: false, error: err.message });
+    });
+  });
+});
+
+ipcMain.handle('check-node-modules', async (_e) => {
+  const cfg = loadConfig();
+  const fs = require('fs');
+  const checks = {
+    backend: { path: cfg.paths.backend, hasModules: false, hasPackageJson: false },
+    cocina: { path: cfg.paths.cocina, hasModules: false, hasPackageJson: false },
+    expo: { path: cfg.paths.mozos, hasModules: false, hasPackageJson: false },
+  };
+  for (const [key, info] of Object.entries(checks)) {
+    if (info.path) {
+      info.hasPackageJson = fs.existsSync(path.join(info.path, 'package.json'));
+      info.hasModules = fs.existsSync(path.join(info.path, 'node_modules'));
+    }
+  }
+  return checks;
+});

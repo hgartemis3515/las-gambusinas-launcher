@@ -59,6 +59,7 @@ function defaultConfig() {
       expo: 'start',
     },
     stopAllOnQuit: true,
+    showCloneSection: false,
   };
 }
 

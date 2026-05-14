@@ -1107,3 +1107,51 @@ code {
   background: var(--accent-blue);
   animation: step-pulse 1.2s ease-in-out infinite;
 }
+
+/* ═══ NPM Install Grid ═══ */
+.npm-install-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.npm-install-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.npm-install-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.npm-install-card.npm-installed {
+  opacity: 0.65;
+}
+.npm-install-status {
+  font-size: 0.8rem;
+}
+.npm-install-status .stat-ok {
+  color: var(--accent);
+  font-weight: 600;
+}
+.npm-install-status .stat-warn {
+  color: #f59e0b;
+  font-weight: 600;
+}
+.npm-install-status .stat-bad {
+  color: #ef4444;
+  font-weight: 600;
+}
+.npm-install-path {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+.npm-install-btn {
+  margin-top: auto;
+}

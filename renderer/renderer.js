@@ -206,6 +206,7 @@ function readConfigFromForm() {
       mongoshPath: 'mongosh',
     },
     git: { executable: 'git' },
+    showCloneSection: $('cfg-show-clone-section').checked,
     stopAllOnQuit: $('cfg-stop-quit').checked,
   };
 }
@@ -232,6 +233,7 @@ async function fillForm(cfg) {
   $('cfg-mongo-check').checked = cfg.mongodb?.checkBeforeBackendStart !== false;
   $('cfg-mongo-force').checked = !!cfg.mongodb?.forceBackendStartIfMongoFails;
   $('cfg-stop-quit').checked = cfg.stopAllOnQuit !== false;
+  $('cfg-show-clone-section').checked = !!cfg.showCloneSection;
   $('delay-boot').value = cfg.delaysMs?.afterBoot ?? 3000;
   $('delay-between').value = cfg.delaysMs?.betweenServiceStarts ?? 2000;
   const ml = $('manifest-label');
@@ -258,8 +260,62 @@ async function refreshMongoAndHttp() {
     .join('');
 }
 
+async function refreshNpmInstallGrid() {
+  const checks = await api.checkNodeModules();
+  const grid = $('npm-install-grid');
+  if (!grid) return;
+  const labels = { backend: 'Backend', cocina: 'Cocina', expo: 'Mozos (Expo)' };
+  grid.innerHTML = '';
+  for (const [key, info] of Object.entries(checks)) {
+    const exists = info.hasPackageJson;
+    const installed = info.hasModules;
+    const card = document.createElement('div');
+    card.className = 'npm-install-card' + (installed ? ' npm-installed' : '');
+    card.innerHTML = `
+      <h3>${labels[key]}</h3>
+      <div class="npm-install-status">
+        ${!info.path ? '<span class="stat-bad">Ruta no configurada</span>' : ''}
+        ${info.path && !exists ? '<span class="stat-bad">Carpeta no encontrada</span>' : ''}
+        ${exists && !installed ? '<span class="stat-warn">package.json sí · node_modules: no</span>' : ''}
+        ${installed ? '<span class="stat-ok">node_modules instalado ✓</span>' : ''}
+      </div>
+      <div class="npm-install-path">${escapeHtml(info.path || '—')}</div>
+      <button type="button" class="btn btn-primary npm-install-btn" data-install="${key}" ${installed || !exists ? 'disabled' : ''}>
+        ${installed ? 'Ya instalado' : 'Instalar dependencias'}
+      </button>
+    `;
+    grid.appendChild(card);
+  }
+  grid.querySelectorAll('[data-install]').forEach((btn) => {
+    btn.addEventListener('click', async (ev) => {
+      ev.currentTarget.disabled = true;
+      ev.currentTarget.textContent = 'Instalando…';
+      const key = ev.currentTarget.getAttribute('data-install');
+      const result = await api.npmInstall(key);
+      if (result.ok) {
+        appendLogLine({ service: key, line: `npm install completado para ${key}`, ts: Date.now() });
+        flashBtnSuccess(ev.currentTarget);
+      } else {
+        appendLogLine({ service: key, line: `npm install falló: ${result.error || result.stderr || 'error'}`, ts: Date.now() });
+        ev.currentTarget.disabled = false;
+        ev.currentTarget.textContent = 'Reintentar';
+      }
+      await refreshNpmInstallGrid();
+    });
+  });
+}
+
+async function refreshCloneVisibility() {
+  const cfg = await api.getConfig();
+  const panel = $('panel-clone-section');
+  if (panel) {
+    panel.style.display = cfg.showCloneSection ? '' : 'none';
+  }
+}
+
 async function refreshServices() {
   const st = await api.serviceStatus();
+  cachedServiceStatus = st;
   const row = $('services-row');
   if (!row) return;
   const names = { backend: 'Backend', cocina: 'App cocina', expo: 'Expo (mozos)' };
@@ -306,10 +362,14 @@ async function refreshServices() {
       await refreshGlobalStatusStrip();
     });
   });
+
+  updateStartStopButtons();
 }
 
 async function refreshGlobalStatusStrip() {
   const [st, http] = await Promise.all([api.serviceStatus(), api.httpAppsStatus()]);
+  cachedServiceStatus = st;
+  cachedHttpOk = { backend: http.backend.ok, cocina: http.cocina.ok, expo: http.expo.ok };
   const strip = $('status-strip');
   if (!strip) return;
 
@@ -331,6 +391,8 @@ async function refreshGlobalStatusStrip() {
       <span style="color:var(--text-muted);font-size:0.72rem">${text}</span>
     </div>`;
   }).join('');
+
+  updateStartStopButtons();
 }
 
 function pillHtml(title, st) {
@@ -379,16 +441,10 @@ async function refreshGitGrid() {
       <div>${g.dirty ? '⚠ Cambios locales sin commit.' : '✓ Working tree limpio.'}</div>
       <div class="git-out">${escapeHtml(g.statusLine || g.error || '')}</div>
       <div class="git-actions">
-        <button type="button" class="btn btn-ghost" data-fetch="${r.key}">git fetch</button>
         <button type="button" class="btn btn-ghost" data-check="${r.key}">Comprobar actualizaciones</button>
         <button type="button" class="btn btn-primary" data-pull="${r.key}">git pull</button>
       </div>
     `;
-    card.querySelector(`[data-fetch="${r.key}"]`).addEventListener('click', async () => {
-      const out = await api.gitFetch(r.key);
-      appendLogLine({ service: 'git', line: `${r.key} fetch: ${out.ok ? 'ok' : 'falló'} ${out.stderr || out.stdout}`, ts: Date.now() });
-      refreshGitGrid();
-    });
     card.querySelector(`[data-check="${r.key}"]`).addEventListener('click', async () => {
       lastUpdates[r.key] = await api.gitCheckUpdates(r.key);
       refreshGitGrid();
@@ -518,6 +574,7 @@ async function startAllServices() {
 
   pulseBtn($('btn-start-all') || $('btn-start-all-svc'));
   disableStartButtons(true);
+  updateStartStopButtons();
   appendLogLine({ service: 'launcher', line: 'Iniciando todos los servicios…', ts: Date.now() });
 
   const total = serviceIds.length;
@@ -571,6 +628,7 @@ async function startAllServices() {
   celebrateLite();
   disableStartButtons(false);
   startingAll = false;
+  updateStartStopButtons();
 
   // Hide progress after a moment
   setTimeout(() => {
@@ -584,6 +642,32 @@ function disableStartButtons(disabled) {
   btns.forEach((b) => { if (b) b.disabled = disabled; });
 }
 
+/** Cached service running state for button enable/disable logic. */
+let cachedServiceStatus = { backend: { running: false }, cocina: { running: false }, expo: { running: false } };
+let cachedHttpOk = { backend: false, cocina: false, expo: false };
+
+function updateStartStopButtons() {
+  const st = cachedServiceStatus;
+  const includeExpo = $('start-all-include-expo')?.checked
+    ?? $('start-all-include-expo-svc')?.checked
+    ?? true;
+  const serviceKeys = includeExpo ? ['backend', 'cocina', 'expo'] : ['backend', 'cocina'];
+  const anyRunning = serviceKeys.some((k) => st[k]?.running);
+  const allRunning = serviceKeys.every((k) => st[k]?.running);
+
+  // Start buttons: disabled during startAll process OR when all services already running
+  [$('btn-start-all'), $('btn-start-all-svc')].forEach((b) => {
+    if (!b) return;
+    b.disabled = startingAll || allRunning;
+  });
+
+  // Stop buttons: disabled when nothing is running (and not in startAll process)
+  [$('btn-stop-all'), $('btn-stop-all-svc')].forEach((b) => {
+    if (!b) return;
+    b.disabled = !anyRunning && !startingAll;
+  });
+}
+
 async function stopAllServices() {
   pulseBtn($('btn-stop-all') || $('btn-stop-all-svc'));
   appendLogLine({ service: 'launcher', line: 'Deteniendo todos los servicios…', ts: Date.now() });
@@ -595,6 +679,7 @@ async function stopAllServices() {
   await refreshServices();
   await refreshMongoAndHttp();
   await refreshGlobalStatusStrip();
+  updateStartStopButtons();
   appendLogLine({ service: 'launcher', line: 'Todos los servicios detenidos.', ts: Date.now() });
 }
 
@@ -679,9 +764,11 @@ async function init() {
   // Sync include-expo checkboxes
   $('start-all-include-expo')?.addEventListener('change', (e) => {
     if ($('start-all-include-expo-svc')) $('start-all-include-expo-svc').checked = e.target.checked;
+    updateStartStopButtons();
   });
   $('start-all-include-expo-svc')?.addEventListener('change', (e) => {
     if ($('start-all-include-expo')) $('start-all-include-expo').checked = e.target.checked;
+    updateStartStopButtons();
   });
 
   $('btn-detect-only').addEventListener('click', async () => {
@@ -749,13 +836,6 @@ async function init() {
   });
 
   $('btn-check-updates-all').addEventListener('click', () => checkUpdatesAll());
-  $('btn-fetch-all').addEventListener('click', async () => {
-    for (const k of ['backend', 'cocina', 'mozos']) {
-      const out = await api.gitFetch(k);
-      appendLogLine({ service: 'git', line: `${k} fetch: ${out.ok ? 'ok' : out.stderr}`, ts: Date.now() });
-    }
-    await checkUpdatesAll();
-  });
 
   async function openQuickLink(target) {
     const cfg = await api.getConfig();
@@ -799,10 +879,24 @@ async function init() {
   await refreshDataBanners();
   await refreshRepoStrip('repo-strip-summary');
   await refreshGlobalStatusStrip();
+  updateStartStopButtons();
 
   const d0 = await api.pathsAutoDetect();
   if (d0.ok) setDetectHint(d0.source || 'OK');
   else setDetectHint('configure rutas o clone');
+
+  $('cfg-show-clone-section').addEventListener('change', async () => {
+    const cfg = await api.getConfig();
+    cfg.showCloneSection = $('cfg-show-clone-section').checked;
+    await api.saveConfig(cfg);
+    await refreshCloneVisibility();
+  });
+
+  await refreshCloneVisibility();
+  await refreshNpmInstallGrid();
+
+  showSection('resumen');
+  $('topbar-title').textContent = sectionTitles.resumen;
 
   const mainCol = document.querySelector('.main-col');
   if (mainCol) iconsReplace(mainCol);

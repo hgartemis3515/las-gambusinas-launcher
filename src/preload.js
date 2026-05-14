@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('launcherAPI', {
   easBuild: (profile) => ipcRenderer.invoke('eas-build', profile),
   getPathsHint: () => ipcRenderer.invoke('get-paths-hint'),
 
+  npmInstall: (serviceKey) => ipcRenderer.invoke('npm-install', serviceKey),
+  checkNodeModules: () => ipcRenderer.invoke('check-node-modules'),
+
   onServiceLog: (cb) => {
     const fn = (_e, data) => cb(data);
     ipcRenderer.on('service-log', fn);
