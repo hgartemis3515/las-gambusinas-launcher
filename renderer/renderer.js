@@ -260,6 +260,76 @@ async function refreshMongoAndHttp() {
     .join('');
 }
 
+async function refreshMongoInfo() {
+  const [mongoConn, mongoDet] = await Promise.all([api.mongoCheck(), api.mongoDetect()]);
+
+  // If connection ping succeeded, MongoDB is definitely installed regardless of detect result
+  if (mongoConn.ok && !mongoDet.installed) {
+    mongoDet.installed = true;
+    mongoDet.mongodFound = true;
+    if (!mongoDet.version) mongoDet.version = 'detectado (conexión activa)';
+    if (!mongoDet.path) mongoDet.path = '(en PATH del sistema)';
+  }
+
+  const connEl = $('mongo-connection-status');
+  const instEl = $('mongo-installed-status');
+  const pathEl = $('mongo-path-value');
+  const instCard = $('mongo-installed-card');
+  const openBtn = $('btn-mongo-open');
+  const downloadLink = $('btn-mongo-download');
+
+  if (connEl) {
+    if (mongoConn.ok) {
+      connEl.textContent = 'Conectado ✓';
+      connEl.className = 'mongo-info-value mongo-ok';
+    } else {
+      connEl.textContent = mongoConn.message || 'Sin conexión';
+      connEl.className = 'mongo-info-value mongo-bad';
+    }
+  }
+
+  if (instEl) {
+    if (mongoDet.installed) {
+      instEl.textContent = mongoDet.mongodFound ? 'Sí (mongod)' : (mongoDet.mongoshFound ? 'Sí (mongosh)' : 'Sí');
+      instEl.className = 'mongo-info-value mongo-ok';
+    } else {
+      instEl.textContent = 'No instalado';
+      instEl.className = 'mongo-info-value mongo-bad';
+    }
+  }
+
+  if (pathEl) {
+    if (mongoDet.path) {
+      pathEl.textContent = mongoDet.path;
+      pathEl.title = mongoDet.path;
+    } else if (mongoDet.installed) {
+      pathEl.textContent = mongoDet.version || 'detectado';
+    } else {
+      pathEl.textContent = '—';
+    }
+  }
+
+  if (instCard) instCard.className = 'mongo-info-card' + (mongoDet.installed ? ' mongo-card-ok' : ' mongo-card-bad');
+
+  if (openBtn) {
+    openBtn.disabled = !mongoDet.installed;
+  }
+
+  if (downloadLink) {
+    if (mongoDet.installed) {
+      downloadLink.classList.add('btn-disabled');
+      downloadLink.style.opacity = '0.5';
+      downloadLink.style.pointerEvents = 'none';
+      downloadLink.title = 'MongoDB ya está instalado';
+    } else {
+      downloadLink.classList.remove('btn-disabled');
+      downloadLink.style.opacity = '';
+      downloadLink.style.pointerEvents = '';
+      downloadLink.title = '';
+    }
+  }
+}
+
 async function refreshNpmInstallGrid() {
   const checks = await api.checkNodeModules();
   const grid = $('npm-install-grid');
@@ -691,7 +761,7 @@ const sectionTitles = {
   servicios: 'Servicios',
   rutas: 'Rutas e instalación',
   git: 'Git y actualizaciones',
-  datos: 'Datos JSON',
+  datos: 'Base de datos',
   mozos: 'Mozos (APK)',
   avanzado: 'Configuración avanzada',
   registro: 'Registro',
@@ -861,6 +931,16 @@ async function init() {
     refreshDataBanners();
   });
 
+  $('btn-mongo-refresh')?.addEventListener('click', async () => {
+    pulseBtn($('btn-mongo-refresh'));
+    await refreshMongoInfo();
+    await refreshMongoAndHttp();
+  });
+  $('btn-mongo-open')?.addEventListener('click', async () => {
+    const r = await api.mongoOpen();
+    appendLogLine({ service: 'launcher', line: `Abrir MongoDB: ${r.opened || 'url'}`, ts: Date.now() });
+  });
+
   $('eas-preview').addEventListener('click', () => api.easBuild('preview'));
   $('eas-prod').addEventListener('click', () => {
     if (window.confirm('¿Build production?')) api.easBuild('production');
@@ -879,6 +959,7 @@ async function init() {
   await refreshDataBanners();
   await refreshRepoStrip('repo-strip-summary');
   await refreshGlobalStatusStrip();
+  await refreshMongoInfo();
   updateStartStopButtons();
 
   const d0 = await api.pathsAutoDetect();
@@ -894,6 +975,50 @@ async function init() {
 
   await refreshCloneVisibility();
   await refreshNpmInstallGrid();
+
+  // Populate launcher info
+  (async () => {
+    const info = await api.getLauncherInfo();
+    const verEl = $('about-version');
+    const elecEl = $('about-electron');
+    const rootEl = $('about-root');
+    if (verEl) verEl.textContent = 'v' + (info.version || '—');
+    if (elecEl) elecEl.textContent = info.electronVersion || '—';
+    if (rootEl) rootEl.textContent = info.root || '—';
+    const brandVer = $('brand-version');
+    if (brandVer && info.version) brandVer.textContent = 'Launcher v' + info.version;
+  })();
+
+  $('btn-check-launcher-update')?.addEventListener('click', async () => {
+    const btn = $('btn-check-launcher-update');
+    const resultEl = $('launcher-update-result');
+    if (!btn || !resultEl) return;
+    btn.disabled = true;
+    btn.textContent = 'Comprobando…';
+    resultEl.className = 'launcher-update-result';
+    resultEl.textContent = '';
+    const result = await api.checkLauncherUpdate();
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="refresh-cw" class="btn-icon"></i> Comprobar actualizaciones del launcher';
+    iconsReplace(btn.parentElement);
+    if (result.ok) {
+      const cls = result.hasUpdate ? 'launcher-update-result warn' : 'launcher-update-result ok';
+      resultEl.className = cls;
+      resultEl.textContent = result.message;
+      if (result.hasUpdate && result.releaseUrl) {
+        const link = document.createElement('a');
+        link.href = result.releaseUrl;
+        link.textContent = ' Ver release →';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'about-link';
+        resultEl.appendChild(link);
+      }
+    } else {
+      resultEl.className = 'launcher-update-result bad';
+      resultEl.textContent = result.message;
+    }
+  });
 
   showSection('resumen');
   $('topbar-title').textContent = sectionTitles.resumen;

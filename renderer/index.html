@@ -67,7 +67,7 @@
           </div>
           <div class="brand-text">
             <span class="brand-title">Las Gambusinas</span>
-            <span class="brand-sub">Launcher v1.0</span>
+            <span class="brand-sub" id="brand-version">Launcher v1.1</span>
           </div>
         </div>
         <nav class="nav">
@@ -89,7 +89,7 @@
           </button>
           <button type="button" class="nav-item" data-section="datos">
             <i data-lucide="database" class="nav-icon"></i>
-            <span>Datos JSON</span>
+            <span>Base de datos</span>
           </button>
           <button type="button" class="nav-item" data-section="mozos">
             <i data-lucide="smartphone" class="nav-icon"></i>
@@ -349,6 +349,37 @@
 
           <!-- ═══ DATOS ═══ -->
           <section id="section-datos" class="section hidden">
+            <!-- MongoDB -->
+            <div class="panel">
+              <h2><i data-lucide="database" class="panel-icon"></i> MongoDB</h2>
+              <div class="mongo-info-grid" id="mongo-info-grid">
+                <div class="mongo-info-card" id="mongo-status-card">
+                  <div class="mongo-info-label">Estado</div>
+                  <div class="mongo-info-value" id="mongo-connection-status">Comprobando…</div>
+                </div>
+                <div class="mongo-info-card" id="mongo-installed-card">
+                  <div class="mongo-info-label">Instalado</div>
+                  <div class="mongo-info-value" id="mongo-installed-status">—</div>
+                </div>
+                <div class="mongo-info-card" id="mongo-path-card">
+                  <div class="mongo-info-label">Ruta</div>
+                  <div class="mongo-info-value" id="mongo-path-value">—</div>
+                </div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button type="button" id="btn-mongo-refresh" class="btn btn-ghost">
+                  <i data-lucide="refresh-cw" class="btn-icon"></i> Refrescar
+                </button>
+                <button type="button" id="btn-mongo-open" class="btn btn-ghost" disabled>
+                  <i data-lucide="external-link" class="btn-icon"></i> Abrir MongoDB Compass / Shell
+                </button>
+                <a id="btn-mongo-download" class="btn btn-ghost" href="https://www.mongodb.com/try/download/community" target="_blank" rel="noopener noreferrer">
+                  <i data-lucide="download" class="btn-icon"></i> Descargar MongoDB Community
+                </a>
+              </div>
+            </div>
+
+            <!-- Datos JSON -->
             <div class="panel">
               <h2>Datos JSON en backend</h2>
               <p class="hint">Manifiesto: <code id="manifest-label"></code></p>
@@ -477,6 +508,23 @@
                   <input type="number" id="delay-between" />
                 </div>
               </div>
+            </div>
+
+            <!-- Acerca del launcher -->
+            <div class="panel panel-about">
+              <h2><i data-lucide="info" class="panel-icon"></i> Acerca del launcher</h2>
+              <div class="about-info">
+                <div class="about-row"><strong>Aplicación</strong><span>Las Gambusinas — Launcher</span></div>
+                <div class="about-row"><strong>Versión</strong><span id="about-version">—</span></div>
+                <div class="about-row"><strong>Electron</strong><span id="about-electron">—</span></div>
+                <div class="about-row"><strong>Raíz</strong><span id="about-root">—</span></div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button type="button" id="btn-check-launcher-update" class="btn btn-ghost">
+                  <i data-lucide="refresh-cw" class="btn-icon"></i> Comprobar actualizaciones del launcher
+                </button>
+              </div>
+              <div id="launcher-update-result" class="launcher-update-result"></div>
             </div>
           </section>
 

@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('launcherAPI', {
   serviceStatus: () => ipcRenderer.invoke('service-status'),
 
   mongoCheck: () => ipcRenderer.invoke('mongo-check'),
+  mongoDetect: () => ipcRenderer.invoke('mongo-detect'),
+  mongoOpen: () => ipcRenderer.invoke('mongo-open'),
   httpAppsStatus: () => ipcRenderer.invoke('http-apps-status'),
 
   gitStatus: (repoKey) => ipcRenderer.invoke('git-status', repoKey),
@@ -37,6 +39,9 @@ contextBridge.exposeInMainWorld('launcherAPI', {
 
   npmInstall: (serviceKey) => ipcRenderer.invoke('npm-install', serviceKey),
   checkNodeModules: () => ipcRenderer.invoke('check-node-modules'),
+
+  getLauncherInfo: () => ipcRenderer.invoke('get-launcher-info'),
+  checkLauncherUpdate: () => ipcRenderer.invoke('check-launcher-update'),
 
   onServiceLog: (cb) => {
     const fn = (_e, data) => cb(data);

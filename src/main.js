@@ -231,6 +231,108 @@ ipcMain.handle('mongo-check', async () => {
   return checkMongo(cfg.paths.backend);
 });
 
+ipcMain.handle('mongo-detect', async () => {
+  const { exec } = require('child_process');
+  const platform = process.platform;
+  const fs = require('fs');
+
+  /** Search common install paths for mongod/mongosh */
+  function findMongoPaths() {
+    const candidates = [];
+    if (platform === 'win32') {
+      const pf = process.env.ProgramFiles || 'C:\\Program Files';
+      const pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+      for (const base of [pf, pf86]) {
+        try {
+          const entries = fs.readdirSync(base, { withFileTypes: true });
+          for (const e of entries) {
+            if (e.isDirectory() && e.name.toLowerCase().startsWith('mongodb')) {
+              const full = path.join(base, e.name);
+              try {
+                const subs = fs.readdirSync(full);
+                // Look for Server subfolders
+                const serverDir = path.join(full, 'Server');
+                if (fs.existsSync(serverDir)) {
+                  const versions = fs.readdirSync(serverDir).filter(s => /^\d/.test(s)).sort();
+                  const latest = versions[versions.length - 1];
+                  if (latest) candidates.push(path.join(serverDir, latest, 'bin'));
+                }
+                // Also check version dirs directly inside MongoDB folder
+                const verDirs = subs.filter(s => /^\d/.test(s)).sort();
+                const latest = verDirs[verDirs.length - 1];
+                if (latest) candidates.push(path.join(full, latest, 'bin'));
+              } catch { /* ignore */ }
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    return candidates;
+  }
+
+  function findMongodBinary() {
+    if (platform !== 'win32') return null;
+    const searchPaths = findMongoPaths();
+    for (const dir of searchPaths) {
+      const candidate = path.join(dir, 'mongod.exe');
+      if (fs.existsSync(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  function findMongoshBinary() {
+    if (platform !== 'win32') return null;
+    // mongosh installs in Program Files separately
+    const pf = process.env.ProgramFiles || 'C:\\Program Files';
+    const candidates = [
+      path.join(pf, 'MongoDB Shell', 'bin', 'mongosh.exe'),
+      path.join(pf, 'MongoDB', 'Tools', 'bin', 'mongosh.exe'),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const mongodBin = platform === 'win32' ? (findMongodBinary() || 'mongod.exe') : 'mongod';
+    const envPaths = findMongoPaths();
+    const envPath = platform === 'win32' ? (process.env.PATH || '') + ';' + envPaths.join(';') : (process.env.PATH || '');
+
+    // Try mongod --version
+    exec(`"${mongodBin}" --version`, { timeout: 6000, windowsHide: true, env: { ...process.env, PATH: envPath } }, (err, stdout) => {
+      const fallbackMongosh = platform === 'win32' ? (findMongoshBinary() || 'mongosh.exe') : 'mongosh';
+      if (err) {
+        // Try mongosh as fallback
+        exec(`"${fallbackMongosh}" --version`, { timeout: 6000, windowsHide: true, env: { ...process.env, PATH: envPath } }, (err2, stdout2) => {
+          if (err2) {
+            resolve({ installed: false, mongodFound: false, mongoshFound: false, path: null, version: null, message: 'MongoDB no encontrado en el sistema.' });
+          } else {
+            const ver = (stdout2 || '').trim().split('\n')[0] || '';
+            resolve({ installed: true, mongodFound: false, mongoshFound: true, path: findMongoshBinary(), version: ver, message: 'mongosh encontrado.' });
+          }
+        });
+        return;
+      }
+      const ver = (stdout || '').trim().split('\n')[0] || '';
+      // Find path
+      let foundPath = findMongodBinary();
+      if (!foundPath) {
+        const whereCmd = platform === 'win32' ? 'where' : 'which';
+        const whereResult = require('child_process').execSync(`${whereCmd} mongod`, { timeout: 4000, encoding: 'utf8', windowsHide: true }).trim();
+        foundPath = whereResult.split('\n')[0] || null;
+      }
+      resolve({ installed: true, mongodFound: true, mongoshFound: false, path: foundPath, version: ver, message: `MongoDB ${ver.split(' ').pop() || ''}` });
+    });
+  });
+});
+
+ipcMain.handle('mongo-open', async () => {
+  // Open MongoDB connection URL — opens MongoDB Compass if installed, otherwise browser
+  shell.openExternal('mongodb://127.0.0.1:27017');
+  return { ok: true, opened: 'url' };
+});
+
 ipcMain.handle('http-apps-status', async () => {
   const cfg = loadConfig();
   return appsStatus(cfg);
@@ -480,4 +582,52 @@ ipcMain.handle('check-node-modules', async (_e) => {
     }
   }
   return checks;
+});
+
+ipcMain.handle('get-launcher-info', () => {
+  return {
+    version: app.getVersion(),
+    electronVersion: process.versions.electron,
+    root: getLauncherRoot(),
+  };
+});
+
+ipcMain.handle('check-launcher-update', async () => {
+  const currentVersion = app.getVersion();
+  const owner = 'hgartemis3515';
+  const repo = 'las-gambusinas-launcher';
+  try {
+    const https = require('https');
+    const data = await new Promise((resolve, reject) => {
+      const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+      https.get(url, { headers: { 'User-Agent': 'las-gambusinas-launcher' } }, (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            try { resolve(JSON.parse(body)); } catch { resolve(null); }
+          } else {
+            resolve(null);
+          }
+        });
+      }).on('error', reject);
+    });
+    if (!data || !data.tag_name) {
+      return { ok: false, message: 'No se pudo obtener información del repositorio.' };
+    }
+    const remoteVersion = data.tag_name.replace(/^v/, '');
+    const hasUpdate = remoteVersion !== currentVersion;
+    return {
+      ok: true,
+      currentVersion,
+      remoteVersion,
+      hasUpdate,
+      message: hasUpdate
+        ? `Nueva versión disponible: v${remoteVersion} (actual: v${currentVersion})`
+        : `Estás en la última versión (v${currentVersion}).`,
+      releaseUrl: data.html_url,
+    };
+  } catch (err) {
+    return { ok: false, message: `Error al comprobar: ${err.message}` };
+  }
 });
