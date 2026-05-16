@@ -273,6 +273,15 @@
               <h2>Descargar e instalar dependencias</h2>
               <p class="hint">Instala <code>node_modules</code> en cada servicio. Se deshabilita si ya está instalado en su ubicación.</p>
               <div class="npm-install-grid" id="npm-install-grid"></div>
+              <div class="task-progress hidden" id="npm-install-progress">
+                <div class="task-progress-bar-wrap">
+                  <div class="task-progress-bar" id="npm-install-progress-bar"></div>
+                </div>
+                <div class="task-progress-status" id="npm-install-progress-status">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Esperando…</span>
+                </div>
+              </div>
             </div>
 
             <div class="panel" id="panel-clone-section">
@@ -289,6 +298,15 @@
               </div>
               <div class="field-row">
                 <button type="button" id="btn-clone-all" class="btn btn-primary">Clonar los 3 que falten</button>
+              </div>
+              <div class="task-progress hidden" id="clone-progress">
+                <div class="task-progress-bar-wrap">
+                  <div class="task-progress-bar" id="clone-progress-bar"></div>
+                </div>
+                <div class="task-progress-status" id="clone-progress-status">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Esperando…</span>
+                </div>
               </div>
               <div class="field">
                 <label>URL Git — Backend</label>
@@ -344,6 +362,15 @@
                 <button type="button" id="btn-check-updates-all" class="btn btn-primary">Comprobar actualizaciones (los 3)</button>
               </div>
               <div class="git-grid" id="git-grid"></div>
+              <div class="task-progress hidden" id="git-progress">
+                <div class="task-progress-bar-wrap">
+                  <div class="task-progress-bar" id="git-progress-bar"></div>
+                </div>
+                <div class="task-progress-status" id="git-progress-status">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Esperando…</span>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -399,6 +426,29 @@
               <div class="row">
                 <button type="button" id="eas-preview" class="btn btn-ghost">Build Android — preview</button>
                 <button type="button" id="eas-prod" class="btn btn-ghost">Build Android — production</button>
+                <button type="button" id="eas-clear-cache" class="btn btn-ghost" title="Borra la caché de npx de EAS CLI. Útil si hay errores de módulo no encontrado.">
+                  <i data-lucide="trash-2" class="btn-icon"></i> Limpiar caché EAS
+                </button>
+              </div>
+              <div class="task-progress hidden" id="eas-progress">
+                <div class="task-progress-bar-wrap">
+                  <div class="task-progress-bar" id="eas-progress-bar"></div>
+                </div>
+                <div class="task-progress-status" id="eas-progress-status">
+                  <span class="status-dot"></span>
+                  <span class="status-text">Esperando…</span>
+                </div>
+              </div>
+              <div class="eas-save-actions hidden" id="eas-save-actions">
+                <div class="eas-save-info" id="eas-save-info">Build completado.</div>
+                <div class="row" style="margin-top: 8px">
+                  <button type="button" id="eas-save-apk" class="btn btn-primary">
+                    <i data-lucide="download" class="btn-icon"></i> Guardar APK en…
+                  </button>
+                  <a id="eas-open-url" class="btn btn-ghost" href="#" target="_blank" rel="noopener noreferrer" style="display:none">
+                    <i data-lucide="external-link" class="btn-icon"></i> Abrir en Expo
+                  </a>
+                </div>
               </div>
             </div>
           </section>

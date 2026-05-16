@@ -26,6 +26,7 @@ const logBuffer = [];
 const MAX_LOG = 600;
 /** @type {import('child_process').ChildProcess | null} */
 let easChild = null;
+let easLastBuildInfo = null;
 let allowQuitAfterCleanup = false;
 
 function pushLog(entry) {
@@ -356,7 +357,11 @@ ipcMain.handle('git-pull', async (_e, repoKey) => {
   const cfg = loadConfig();
   const dir = cfg.paths[repoKey];
   if (!dir) return { ok: false, error: 'bad_repo' };
-  return runGit(dir, ['pull'], cfg.git?.executable || 'git');
+  const taskId = `git-pull-${repoKey}-${Date.now()}`;
+  sendTaskProgress(taskId, { status: 'running', pct: 10, message: `git pull en ${repoKey}…` });
+  const result = await runGit(dir, ['pull'], cfg.git?.executable || 'git');
+  sendTaskProgress(taskId, { status: result.ok ? 'done' : 'error', pct: result.ok ? 100 : 50, message: result.ok ? `${repoKey}: pull completado.` : `${repoKey}: pull falló.` });
+  return { ...result, taskId };
 });
 
 ipcMain.handle('data-list', () => {
@@ -385,6 +390,12 @@ ipcMain.handle('open-external', (_e, url) => {
 
 ipcMain.handle('get-logs', () => logBuffer.slice(-200));
 
+function sendTaskProgress(taskId, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('task-progress', { taskId, ...data });
+  }
+}
+
 ipcMain.handle('eas-build', (_e, profile) => {
   const cfg = loadConfig();
   if (easChild && easChild.pid) {
@@ -392,26 +403,100 @@ ipcMain.handle('eas-build', (_e, profile) => {
   }
   const prof = profile === 'production' ? 'production' : 'preview';
   const cwd = cfg.paths.mozos;
+  const taskId = `eas-${prof}-${Date.now()}`;
   const { spawn } = require('child_process');
+  easLastBuildInfo = null;
+  sendTaskProgress(taskId, { status: 'running', pct: 5, message: `Iniciando build Android perfil="${prof}"…` });
   easChild = spawn(
     'npx',
     ['--yes', '--package', 'eas-cli', 'eas', 'build', '-p', 'android', '--profile', prof, '--non-interactive'],
     { cwd, shell: true, env: { ...process.env, CI: '1' } },
   );
   const tag = { service: 'eas', ts: Date.now() };
+  let lastPct = 5;
+  let allOutput = '';
   const onData = (buf) => {
     for (const line of buf.toString().split(/\r?\n/)) {
-      if (line.trim()) pushLog({ ...tag, line: `[eas] ${line}` });
+      if (line.trim()) {
+        pushLog({ ...tag, line: `[eas] ${line}` });
+        allOutput += line + '\n';
+        // Try to detect build progress from EAS output
+        const pctMatch = line.match(/(\d+)%/);
+        if (pctMatch) {
+          const parsed = parseInt(pctMatch[1], 10);
+          if (parsed > lastPct && parsed <= 100) {
+            lastPct = Math.min(parsed, 95);
+            sendTaskProgress(taskId, { status: 'running', pct: lastPct, message: line.trim() });
+          }
+        }
+      }
     }
   };
   easChild.stdout.on('data', onData);
   easChild.stderr.on('data', onData);
   easChild.on('close', (code) => {
     pushLog({ service: 'eas', line: `[eas] Proceso terminado (código ${code}).`, ts: Date.now() });
+    // Parse build info from output
+    let buildUrl = null;
+    let buildId = null;
+    // Check for common EAS CLI errors
+    let errorMsg = null;
+    const moduleNotFoundMatch = allOutput.match(/Error:\s*Cannot find module\s+'([^']+)'/);
+    const lockCompromisedMatch = allOutput.match(/ECOMPROMISED|Lock compromised/i);
+    if (code !== 0 && moduleNotFoundMatch) {
+      errorMsg = `EAS CLI corrupto: falta módulo "${moduleNotFoundMatch[1]}". Use "Limpiar caché EAS" y reintente.`;
+    } else if (code !== 0 && lockCompromisedMatch) {
+      errorMsg = `Caché npm comprometida (lock). Use "Limpiar caché EAS" y reintente.`;
+    }
+    // Try to extract URL: look for expo.dev or exp.host or similar patterns
+    const urlMatch = allOutput.match(/(https:\/\/[^\s"']*expo\.dev[^\s"']*)/i) ||
+                     allOutput.match(/(https:\/\/[^\s"']*exp\.host[^\s"']*)/i) ||
+                     allOutput.match(/(https:\/\/[^\s"']*\.apk[^\s"']*)/i);
+    if (urlMatch) buildUrl = urlMatch[1];
+    // Try JSON output: extract build ID
+    try {
+      const jsonBlocks = allOutput.match(/\[[\s\S]*?\]/g);
+      if (jsonBlocks) {
+        for (const block of jsonBlocks) {
+          try {
+            const parsed = JSON.parse(block);
+            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
+              buildId = parsed[0].id;
+              if (!buildUrl && parsed[0].artifacts?.buildUrl) {
+                buildUrl = parsed[0].artifacts.buildUrl;
+              }
+              break;
+            }
+          } catch { /* not valid JSON, skip */ }
+        }
+      }
+      // Also try single object JSON
+      const objMatch = allOutput.match(/\{[\s\S]*?"id"[\s\S]*?\}/g);
+      if (!buildId && objMatch) {
+        for (const obj of objMatch) {
+          try {
+            const parsed = JSON.parse(obj);
+            if (parsed.id) {
+              buildId = parsed.id;
+              if (!buildUrl && parsed.artifacts?.buildUrl) buildUrl = parsed.artifacts.buildUrl;
+              break;
+            }
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* skip JSON parsing */ }
+    if (buildId || buildUrl) {
+      easLastBuildInfo = { buildId, buildUrl, profile: prof, code, timestamp: Date.now() };
+    }
+    const doneMsg = code === 0
+      ? (buildUrl ? `Build completado. Puede guardar el APK.` : 'Build completado.')
+      : (errorMsg || `Build falló (código ${code}).`);
+    sendTaskProgress(taskId, { status: code === 0 ? 'done' : 'error', pct: code === 0 ? 100 : lastPct, message: doneMsg, buildUrl, buildId });
     easChild = null;
   });
   easChild.on('error', (err) => {
     pushLog({ service: 'eas', line: `[eas] Error: ${err.message}`, ts: Date.now() });
+    sendTaskProgress(taskId, { status: 'error', pct: lastPct, message: `Error: ${err.message}` });
     easChild = null;
   });
   pushLog({
@@ -419,7 +504,160 @@ ipcMain.handle('eas-build', (_e, profile) => {
     line: `[eas] Iniciado build Android perfil="${prof}" en ${cwd}`,
     ts: Date.now(),
   });
-  return { ok: true, profile: prof };
+  return { ok: true, profile: prof, taskId };
+});
+
+ipcMain.handle('eas-build-info', () => easLastBuildInfo);
+
+ipcMain.handle('eas-clear-npx-cache', async () => {
+  const fs = require('fs');
+  const path = require('path');
+  const appDataLocal = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || '', 'AppData', 'Local');
+  const npmCache = path.join(appDataLocal, 'npm-cache');
+  const dirsToClean = ['_npx', '_locks'];
+  let cleaned = [];
+  let errors = [];
+  for (const sub of dirsToClean) {
+    const dir = path.join(npmCache, sub);
+    if (fs.existsSync(dir)) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+        cleaned.push(sub);
+      } catch (err) {
+        errors.push(`${sub}: ${err.message}`);
+      }
+    }
+  }
+  if (errors.length > 0) {
+    pushLog({ service: 'eas', line: `[eas] Error limpiando caché: ${errors.join('; ')}`, ts: Date.now() });
+    return { ok: false, error: errors.join('; ') };
+  }
+  if (cleaned.length === 0) {
+    pushLog({ service: 'eas', line: '[eas] Caché ya limpia.', ts: Date.now() });
+    return { ok: true, message: 'Caché ya limpia.' };
+  }
+  pushLog({ service: 'eas', line: `[eas] Caché limpiada: ${cleaned.join(', ')}`, ts: Date.now() });
+  return { ok: true, message: `Caché limpiada (${cleaned.join(', ')}). El próximo build descargará EAS CLI de nuevo.` };
+});
+
+ipcMain.handle('eas-save-apk', async (_e, { buildId, buildUrl }) => {
+  const cfg = loadConfig();
+  const cwd = cfg.paths.mozos;
+  const fs = require('fs');
+  const https = require('https');
+  const http = require('http');
+
+  // First try to download via URL directly
+  if (!buildUrl && !buildId) {
+    return { ok: false, error: 'No hay URL ni ID del build.' };
+  }
+
+  // If we have a buildId but no URL, try to get URL via eas build:view
+  if (!buildUrl && buildId) {
+    try {
+      const { execSync } = require('child_process');
+      const viewOutput = execSync(
+        `npx --yes --package eas-cli eas build:view ${buildId} --json --non-interactive`,
+        { cwd, shell: true, env: { ...process.env, CI: '1' }, timeout: 30000, encoding: 'utf8' },
+      );
+      const parsed = JSON.parse(viewOutput.trim());
+      if (parsed && parsed.artifacts && parsed.artifacts.buildUrl) {
+        buildUrl = parsed.artifacts.buildUrl;
+      }
+    } catch (e) {
+      // Fallback: try to construct expo.dev URL
+      buildUrl = `https://expo.dev/accounts/[project]/builds/${buildId}`;
+    }
+  }
+
+  if (!buildUrl) {
+    return { ok: false, error: 'No se pudo obtener la URL de descarga.' };
+  }
+
+  // Ask user where to save
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return { ok: false, error: 'Ventana principal no disponible.' };
+  }
+  const saveResult = await dialog.showSaveDialog(mainWindow, {
+    title: 'Guardar APK',
+    defaultPath: `mozos-${buildId || 'build'}.apk`,
+    filters: [{ name: 'APK', extensions: ['apk'] }],
+  });
+  if (saveResult.canceled || !saveResult.filePath) {
+    return { ok: false, error: 'cancelled' };
+  }
+  const destPath = saveResult.filePath;
+
+  // Download the file
+  const taskId = `eas-save-${Date.now()}`;
+  sendTaskProgress(taskId, { status: 'running', pct: 10, message: 'Descargando APK…' });
+
+  return new Promise((resolve) => {
+    const file = fs.createWriteStream(destPath);
+    const downloadUrl = buildUrl.startsWith('http') ? buildUrl : `https://${buildUrl}`;
+    const client = downloadUrl.startsWith('https') ? https : http;
+
+    client.get(downloadUrl, { headers: { 'User-Agent': 'las-gambusinas-launcher' } }, (response) => {
+      // Handle redirects
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        file.close();
+        fs.unlinkSync(destPath);
+        // Follow redirect
+        const redirectUrl = response.headers.location;
+        const redirectClient = redirectUrl.startsWith('https') ? https : http;
+        const redirectFile = fs.createWriteStream(destPath);
+        const totalLen = parseInt(response.headers['content-length'] || '0', 10);
+        let downloaded = 0;
+        redirectClient.get(redirectUrl, { headers: { 'User-Agent': 'las-gambusinas-launcher' } }, (redirRes) => {
+          const redirTotal = parseInt(redirRes.headers['content-length'] || '0', 10);
+          redirRes.on('data', (chunk) => {
+            downloaded += chunk.length;
+            if (redirTotal > 0) {
+              sendTaskProgress(taskId, { status: 'running', pct: Math.min(Math.round((downloaded / redirTotal) * 80) + 10, 95), message: `Descargando APK… ${Math.round(downloaded / 1024)}KB` });
+            }
+          });
+          redirRes.pipe(redirectFile);
+          redirectFile.on('finish', () => {
+            redirectFile.close();
+            sendTaskProgress(taskId, { status: 'done', pct: 100, message: `APK guardado en: ${destPath}` });
+            resolve({ ok: true, path: destPath });
+          });
+        }).on('error', (err) => {
+          fs.unlinkSync(destPath);
+          sendTaskProgress(taskId, { status: 'error', pct: 50, message: `Error descargando: ${err.message}` });
+          resolve({ ok: false, error: err.message });
+        });
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        file.close();
+        if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
+        sendTaskProgress(taskId, { status: 'error', pct: 50, message: `Error HTTP: ${response.statusCode}` });
+        resolve({ ok: false, error: `HTTP ${response.statusCode}` });
+        return;
+      }
+
+      const totalLen = parseInt(response.headers['content-length'] || '0', 10);
+      let downloaded = 0;
+      response.on('data', (chunk) => {
+        downloaded += chunk.length;
+        if (totalLen > 0) {
+          sendTaskProgress(taskId, { status: 'running', pct: Math.min(Math.round((downloaded / totalLen) * 80) + 10, 95), message: `Descargando APK… ${Math.round(downloaded / 1024)}KB` });
+        }
+      });
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        sendTaskProgress(taskId, { status: 'done', pct: 100, message: `APK guardado en: ${destPath}` });
+        resolve({ ok: true, path: destPath });
+      });
+    }).on('error', (err) => {
+      if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
+      sendTaskProgress(taskId, { status: 'error', pct: 50, message: `Error descargando: ${err.message}` });
+      resolve({ ok: false, error: err.message });
+    });
+  });
 });
 
 ipcMain.handle('get-paths-hint', () => ({
@@ -478,9 +716,12 @@ ipcMain.handle('git-clone-repo', async (_e, { repoKey, parentDir }) => {
   } catch (e) {
     return { ok: false, error: e.message };
   }
+  const taskId = `git-clone-${repoKey}-${Date.now()}`;
+  sendTaskProgress(taskId, { status: 'running', pct: 10, message: `Clonando ${repoKey}…` });
   const onLine = (line) =>
     pushLog({ service: 'git', line: `[clone ${repoKey}] ${line}`, ts: Date.now() });
   const r = await gitClone(url, parent, folder, onLine);
+  sendTaskProgress(taskId, { status: r.ok ? 'done' : 'error', pct: r.ok ? 100 : 50, message: r.ok ? `${repoKey}: clonado en ${r.dest}.` : `${repoKey}: error al clonar.` });
   if (r.ok) {
     const next = {
       ...cfg,
@@ -490,7 +731,7 @@ ipcMain.handle('git-clone-repo', async (_e, { repoKey, parentDir }) => {
     saveConfig(next);
     syncAutostartShortcut(next);
   }
-  return r;
+  return { ...r, taskId };
 });
 
 ipcMain.handle('repos-clone-all', async (_e, explicitParent) => {
@@ -503,27 +744,34 @@ ipcMain.handle('repos-clone-all', async (_e, explicitParent) => {
   } catch (e) {
     return { ok: false, error: e.message };
   }
+  const taskId = `git-clone-all-${Date.now()}`;
   const map = [
     { key: 'backend', folder: FOLDER_BACKEND },
     { key: 'cocina', folder: FOLDER_COCINA },
     { key: 'mozos', folder: FOLDER_MOZOS },
   ];
   const results = [];
-  for (const { key, folder } of map) {
+  const total = map.length;
+  for (let i = 0; i < map.length; i++) {
+    const { key, folder } = map[i];
     const dest = path.join(parent, folder);
     if (fs.existsSync(path.join(dest, 'package.json'))) {
       results.push({ key, skipped: true, dest });
+      sendTaskProgress(taskId, { status: 'running', pct: Math.round(((i + 1) / total) * 100), message: `${key}: ya existe, omitido.` });
       continue;
     }
     const url = (cfg.cloneUrls || {})[key];
     if (!url) {
       results.push({ key, ok: false, error: 'sin URL' });
+      sendTaskProgress(taskId, { status: 'running', pct: Math.round(((i + 1) / total) * 100 * 0.8), message: `${key}: sin URL configurada.` });
       continue;
     }
+    sendTaskProgress(taskId, { status: 'running', pct: Math.round(((i * 0.8 + 0.2) / total) * 100), message: `Clonando ${key}…` });
     const r = await gitClone(url, parent, folder, (line) =>
       pushLog({ service: 'git', line: `[clone ${key}] ${line}`, ts: Date.now() }),
     );
     results.push({ key, ...r });
+    sendTaskProgress(taskId, { status: 'running', pct: Math.round(((i + 1) / total) * 90), message: `${key}: ${r.ok ? 'clonado.' : 'error.'}` });
   }
   const newPaths = { ...cfg.paths };
   for (const { key, folder } of map) {
@@ -535,7 +783,8 @@ ipcMain.handle('repos-clone-all', async (_e, explicitParent) => {
   const next = { ...cfg, paths: newPaths, cloneParentDir: parent };
   saveConfig(next);
   syncAutostartShortcut(next);
-  return { ok: true, results, paths: newPaths };
+  sendTaskProgress(taskId, { status: 'done', pct: 100, message: 'Clonación masiva completada.' });
+  return { ok: true, results, paths: newPaths, taskId };
 });
 
 ipcMain.handle('git-check-updates', async (_e, repoKey) => {
@@ -551,18 +800,31 @@ ipcMain.handle('npm-install', async (_e, serviceKey) => {
   if (!dir) return { ok: false, error: 'Ruta no configurada para ' + serviceKey };
   const fs = require('fs');
   if (!fs.existsSync(dir)) return { ok: false, error: 'Carpeta no existe: ' + dir };
+  const taskId = `npm-${serviceKey}-${Date.now()}`;
   const { spawn } = require('child_process');
+  sendTaskProgress(taskId, { status: 'running', pct: 5, message: `Instalando dependencias de ${serviceKey}…` });
   return new Promise((resolve) => {
     const proc = spawn('npm', ['install'], { cwd: dir, shell: true, windowsHide: true });
     let stdout = '';
     let stderr = '';
-    proc.stdout.on('data', (d) => { stdout += d.toString(); pushLog({ service: serviceKey, line: `[npm install] ${d.toString().trim()}`, ts: Date.now() }); });
+    let lastPct = 5;
+    const onData = (d) => {
+      const text = d.toString();
+      if (text.includes('npm install') || text.includes('added') || text.includes('packages')) {
+        lastPct = Math.min(lastPct + 8, 90);
+        sendTaskProgress(taskId, { status: 'running', pct: lastPct, message: `Instalando ${serviceKey}…` });
+      }
+      pushLog({ service: serviceKey, line: `[npm install] ${text.trim()}`, ts: Date.now() });
+    };
+    proc.stdout.on('data', (d) => { stdout += d.toString(); onData(d); });
     proc.stderr.on('data', (d) => { stderr += d.toString(); pushLog({ service: serviceKey, line: `[npm install] ${d.toString().trim()}`, ts: Date.now() }); });
     proc.on('close', (code) => {
-      resolve({ ok: code === 0, code, stdout, stderr });
+      sendTaskProgress(taskId, { status: code === 0 ? 'done' : 'error', pct: code === 0 ? 100 : lastPct, message: code === 0 ? `${serviceKey}: dependencias instaladas.` : `Error instalando ${serviceKey} (código ${code}).` });
+      resolve({ ok: code === 0, code, stdout, stderr, taskId });
     });
     proc.on('error', (err) => {
-      resolve({ ok: false, error: err.message });
+      sendTaskProgress(taskId, { status: 'error', pct: lastPct, message: `Error: ${err.message}` });
+      resolve({ ok: false, error: err.message, taskId });
     });
   });
 });

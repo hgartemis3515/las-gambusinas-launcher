@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('launcherAPI', {
 
   getLogs: () => ipcRenderer.invoke('get-logs'),
   easBuild: (profile) => ipcRenderer.invoke('eas-build', profile),
+  easBuildInfo: () => ipcRenderer.invoke('eas-build-info'),
+  easSaveApk: (opts) => ipcRenderer.invoke('eas-save-apk', opts),
+  easClearNpxCache: () => ipcRenderer.invoke('eas-clear-npx-cache'),
   getPathsHint: () => ipcRenderer.invoke('get-paths-hint'),
 
   npmInstall: (serviceKey) => ipcRenderer.invoke('npm-install', serviceKey),
@@ -47,5 +50,11 @@ contextBridge.exposeInMainWorld('launcherAPI', {
     const fn = (_e, data) => cb(data);
     ipcRenderer.on('service-log', fn);
     return () => ipcRenderer.removeListener('service-log', fn);
+  },
+
+  onTaskProgress: (cb) => {
+    const fn = (_e, data) => cb(data);
+    ipcRenderer.on('task-progress', fn);
+    return () => ipcRenderer.removeListener('task-progress', fn);
   },
 });

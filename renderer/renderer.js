@@ -361,6 +361,12 @@ async function refreshNpmInstallGrid() {
       ev.currentTarget.disabled = true;
       ev.currentTarget.textContent = 'Instalando…';
       const key = ev.currentTarget.getAttribute('data-install');
+      const progEl = $('npm-install-progress');
+      if (progEl) progEl.classList.remove('hidden');
+      const bar = $('npm-install-progress-bar');
+      if (bar) { bar.style.width = '5%'; bar.classList.remove('complete', 'error'); }
+      const status = $('npm-install-progress-status');
+      if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = `Instalando ${key}…`; }
       const result = await api.npmInstall(key);
       if (result.ok) {
         appendLogLine({ service: key, line: `npm install completado para ${key}`, ts: Date.now() });
@@ -521,6 +527,12 @@ async function refreshGitGrid() {
     });
     card.querySelector(`[data-pull="${r.key}"]`).addEventListener('click', async () => {
       if (g.dirty && !window.confirm(`${r.title}: hay cambios locales. ¿Hacer git pull?`)) return;
+      const progEl = $('git-progress');
+      if (progEl) progEl.classList.remove('hidden');
+      const bar = $('git-progress-bar');
+      if (bar) { bar.style.width = '10%'; bar.classList.remove('complete', 'error'); }
+      const status = $('git-progress-status');
+      if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = `git pull en ${r.key}…`; }
       const out = await api.gitPull(r.key);
       appendLogLine({ service: 'git', line: `${r.key} pull: ${out.ok ? 'ok' : 'falló'} ${out.stderr || out.stdout}`, ts: Date.now() });
       lastUpdates[r.key] = await api.gitCheckUpdates(r.key);
@@ -754,6 +766,83 @@ async function stopAllServices() {
 }
 
 /* ════════════════════════════════════════════
+   TASK PROGRESS (generic progress bar handler)
+   ════════════════════════════════════════════ */
+const taskProgressBars = {
+  eas: { progressEl: () => $('eas-progress'), barEl: () => $('eas-progress-bar'), statusEl: () => $('eas-progress-status') },
+  'npm-install': { progressEl: () => $('npm-install-progress'), barEl: () => $('npm-install-progress-bar'), statusEl: () => $('npm-install-progress-status') },
+  'git-pull': { progressEl: () => $('git-progress'), barEl: () => $('git-progress-bar'), statusEl: () => $('git-progress-status') },
+  'git-clone': { progressEl: () => $('clone-progress'), barEl: () => $('clone-progress-bar'), statusEl: () => $('clone-progress-status') },
+};
+
+function updateTaskProgressUI(taskId, data) {
+  // Determine which progress bar to use based on taskId prefix
+  let key = null;
+  if (taskId.startsWith('eas-')) key = 'eas';
+  else if (taskId.startsWith('npm-')) key = 'npm-install';
+  else if (taskId.startsWith('git-pull-')) key = 'git-pull';
+  else if (taskId.startsWith('git-clone-') || taskId.startsWith('git-clone-all-')) key = 'git-clone';
+  if (!key || !taskProgressBars[key]) return;
+
+  const { barEl, statusEl, progressEl } = taskProgressBars[key];
+  const bar = barEl();
+  const status = statusEl();
+  const progress = progressEl();
+  if (!progress) return;
+
+  progress.classList.remove('hidden');
+
+  if (bar) {
+    bar.style.width = (data.pct || 0) + '%';
+    bar.classList.remove('indeterminate', 'complete', 'error');
+    if (data.pct < 15 && data.status === 'running') {
+      bar.classList.add('indeterminate');
+    }
+    if (data.status === 'done') bar.classList.add('complete');
+    if (data.status === 'error') bar.classList.add('error');
+  }
+
+  if (status) {
+    status.classList.remove('done', 'error');
+    const textEl = status.querySelector('.status-text');
+    if (textEl) textEl.textContent = data.message || '';
+    if (data.status === 'done') status.classList.add('done');
+    if (data.status === 'error') status.classList.add('error');
+  }
+
+  // EAS build completed: show save actions
+  if (key === 'eas' && (data.status === 'done' || data.status === 'error')) {
+    const saveActions = document.getElementById('eas-save-actions');
+    const saveInfo = document.getElementById('eas-save-info');
+    if (data.status === 'done' && saveActions && saveInfo) {
+      saveActions.classList.remove('hidden');
+      saveInfo.textContent = data.message || 'Build completado. Puede guardar el APK.';
+      // Show Expo link if buildUrl present
+      const openUrl = document.getElementById('eas-open-url');
+      if (openUrl && data.buildUrl) {
+        openUrl.href = data.buildUrl;
+        openUrl.style.display = '';
+      }
+    } else if (data.status === 'error' && saveActions) {
+      saveActions.classList.add('hidden');
+    }
+  }
+
+  // Auto-hide on completion after a delay (except for EAS which has save button)
+  if (data.status === 'done' || data.status === 'error') {
+    if (key !== 'eas') {
+      setTimeout(() => {
+        if (progress) progress.classList.add('hidden');
+        if (bar) {
+          bar.style.width = '0%';
+          bar.classList.remove('complete', 'error');
+        }
+      }, 4000);
+    }
+  }
+}
+
+/* ════════════════════════════════════════════
    SECTION TITLES
    ════════════════════════════════════════════ */
 const sectionTitles = {
@@ -888,6 +977,12 @@ async function init() {
 
   $('btn-clone-all').addEventListener('click', async () => {
     if (!window.confirm('¿Clonar los repositorios que falten en la carpeta padre indicada?')) return;
+    const progEl = $('clone-progress');
+    if (progEl) progEl.classList.remove('hidden');
+    const bar = $('clone-progress-bar');
+    if (bar) { bar.style.width = '5%'; bar.classList.remove('complete', 'error'); }
+    const status = $('clone-progress-status');
+    if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = 'Clonando repositorios…'; }
     const r = await api.reposCloneAll(cloneParent());
     appendLogLine({ service: 'git', line: `Clonación masiva: ${JSON.stringify(r.results || r)}`, ts: Date.now() });
     await fillForm(await api.getConfig());
@@ -898,6 +993,12 @@ async function init() {
     btn.addEventListener('click', async () => {
       const key = btn.getAttribute('data-clone');
       if (!window.confirm(`¿Clonar ${key} con la URL configurada?`)) return;
+      const progEl = $('clone-progress');
+      if (progEl) progEl.classList.remove('hidden');
+      const bar = $('clone-progress-bar');
+      if (bar) { bar.style.width = '10%'; bar.classList.remove('complete', 'error'); }
+      const status = $('clone-progress-status');
+      if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = `Clonando ${key}…`; }
       const res = await api.gitCloneRepo({ repoKey: key, parentDir: cloneParent() });
       appendLogLine({ service: 'git', line: JSON.stringify(res), ts: Date.now() });
       await fillForm(await api.getConfig());
@@ -941,14 +1042,90 @@ async function init() {
     appendLogLine({ service: 'launcher', line: `Abrir MongoDB: ${r.opened || 'url'}`, ts: Date.now() });
   });
 
-  $('eas-preview').addEventListener('click', () => api.easBuild('preview'));
-  $('eas-prod').addEventListener('click', () => {
-    if (window.confirm('¿Build production?')) api.easBuild('production');
+  $('eas-preview').addEventListener('click', async () => {
+    const saveActions = $('eas-save-actions');
+    if (saveActions) saveActions.classList.add('hidden');
+    const openUrl = $('eas-open-url');
+    if (openUrl) openUrl.style.display = 'none';
+    const progEl = $('eas-progress');
+    if (progEl) progEl.classList.remove('hidden');
+    const bar = $('eas-progress-bar');
+    if (bar) { bar.style.width = '5%'; bar.classList.remove('complete', 'error'); bar.classList.add('indeterminate'); }
+    const status = $('eas-progress-status');
+    if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = 'Iniciando build preview…'; }
+    const result = await api.easBuild('preview');
+    if (!result.ok && result.error === 'eas_already_running') {
+      if (status) { status.classList.add('error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = 'Ya hay un build en ejecución.'; }
+      if (bar) { bar.classList.remove('indeterminate'); bar.style.width = '100%'; bar.classList.add('error'); }
+    }
+  });
+  $('eas-prod').addEventListener('click', async () => {
+    if (!window.confirm('¿Build production?')) return;
+    const saveActions = $('eas-save-actions');
+    if (saveActions) saveActions.classList.add('hidden');
+    const openUrl = $('eas-open-url');
+    if (openUrl) openUrl.style.display = 'none';
+    const progEl = $('eas-progress');
+    if (progEl) progEl.classList.remove('hidden');
+    const bar = $('eas-progress-bar');
+    if (bar) { bar.style.width = '5%'; bar.classList.remove('complete', 'error'); bar.classList.add('indeterminate'); }
+    const status = $('eas-progress-status');
+    if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = 'Iniciando build production…'; }
+    const result = await api.easBuild('production');
+    if (!result.ok && result.error === 'eas_already_running') {
+      if (status) { status.classList.add('error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = 'Ya hay un build en ejecución.'; }
+      if (bar) { bar.classList.remove('indeterminate'); bar.style.width = '100%'; bar.classList.add('error'); }
+    }
+  });
+
+  $('eas-save-apk')?.addEventListener('click', async () => {
+    const info = await api.easBuildInfo();
+    if (!info || (!info.buildId && !info.buildUrl)) {
+      appendLogLine({ service: 'eas', line: 'No hay información del build para descargar.', ts: Date.now() });
+      return;
+    }
+    const progEl = $('eas-progress');
+    if (progEl) progEl.classList.remove('hidden');
+    const bar = $('eas-progress-bar');
+    if (bar) { bar.style.width = '5%'; bar.classList.remove('complete', 'error', 'indeterminate'); }
+    const status = $('eas-progress-status');
+    if (status) { status.classList.remove('done', 'error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = 'Descargando APK…'; }
+    const result = await api.easSaveApk({ buildId: info.buildId, buildUrl: info.buildUrl });
+    if (result.ok) {
+      if (status) { status.classList.add('done'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = `APK guardado: ${result.path}`; }
+      if (bar) { bar.style.width = '100%'; bar.classList.add('complete'); }
+      appendLogLine({ service: 'eas', line: `APK guardado en: ${result.path}`, ts: Date.now() });
+      flashBtnSuccess($('eas-save-apk'));
+    } else if (result.error !== 'cancelled') {
+      if (status) { status.classList.add('error'); const txt = status.querySelector('.status-text'); if (txt) txt.textContent = `Error: ${result.error}`; }
+      if (bar) { bar.classList.add('error'); }
+      appendLogLine({ service: 'eas', line: `Error al guardar APK: ${result.error}`, ts: Date.now() });
+    } else {
+      // User cancelled, reset progress
+      if (progEl) progEl.classList.add('hidden');
+    }
+  });
+
+  $('eas-clear-cache')?.addEventListener('click', async () => {
+    if (!window.confirm('¿Limpiar la caché de EAS CLI (npx)? Esto forzará una descarga limpia en el próximo build.')) return;
+    const btn = $('eas-clear-cache');
+    if (btn) { btn.disabled = true; btn.textContent = 'Limpiando…'; }
+    const r = await api.easClearNpxCache();
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="trash-2" class="btn-icon"></i> Limpiar caché EAS'; iconsReplace(btn.parentElement); }
+    if (r.ok) {
+      appendLogLine({ service: 'eas', line: r.message, ts: Date.now() });
+    } else {
+      appendLogLine({ service: 'eas', line: `Error limpiando caché: ${r.error}`, ts: Date.now() });
+    }
   });
 
   const unsub = api.onServiceLog(appendLogLine);
+  const unsubProgress = api.onTaskProgress((data) => {
+    if (data && data.taskId) updateTaskProgressUI(data.taskId, data);
+  });
   window.addEventListener('beforeunload', () => {
     if (typeof unsub === 'function') unsub();
+    if (typeof unsubProgress === 'function') unsubProgress();
   });
 
   (await api.getLogs()).forEach(appendLogLine);
