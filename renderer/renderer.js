@@ -180,7 +180,7 @@ function readConfigFromForm() {
       cocina: Number($('port-cocina').value) || 3001,
       expoMetro: Number($('port-expo').value) || 8081,
     },
-    publicBaseUrl: $('public-base-url').value.trim() || 'http://127.0.0.1:3000',
+    publicBaseUrl: $('public-base-url').value.trim() || '',
     dataManifestPath: $('data-manifest-path').value.trim() || 'data/data.json',
     cloneParentDir: $('clone-parent-dir').value.trim(),
     cloneUrls: {
@@ -218,7 +218,7 @@ async function fillForm(cfg) {
   $('port-backend').value = cfg.ports?.backend ?? 3000;
   $('port-cocina').value = cfg.ports?.cocina ?? 3001;
   $('port-expo').value = cfg.ports?.expoMetro ?? 8081;
-  $('public-base-url').value = cfg.publicBaseUrl || '';
+  void refreshQuickLinks();
   $('data-manifest-path').value = cfg.dataManifestPath || 'data/data.json';
   $('clone-parent-dir').value = cfg.cloneParentDir || '';
   $('clone-url-backend').value = cfg.cloneUrls?.backend || '';
@@ -240,24 +240,42 @@ async function fillForm(cfg) {
   if (ml) ml.textContent = cfg.dataManifestPath || 'data/data.json';
 }
 
+async function refreshQuickLinks() {
+  if (typeof api.getQuickLinks !== 'function') return;
+  try {
+    const info = await api.getQuickLinks();
+    const urls = info?.urls || {};
+    document.querySelectorAll('[data-link-url]').forEach((el) => {
+      const key = el.getAttribute('data-link-url');
+      el.textContent = urls[key] || '—';
+    });
+    const input = $('public-base-url');
+    if (input) input.value = info.backendOrigin || '';
+  } catch {
+    /* noop */
+  }
+}
+
 async function refreshMongoAndHttp() {
   const [mongo, http] = await Promise.all([api.mongoCheck(), api.httpAppsStatus()]);
   const grid = $('status-grid');
-  if (!grid) return;
-  const cards = [
-    { label: 'MongoDB (ping)', ok: mongo.ok, text: mongo.ok ? mongo.message : mongo.message, sub: mongo.uriMasked || '' },
-    { label: http.backend.label, ok: http.backend.ok, text: http.backend.ok ? `HTTP ${http.backend.status}` : http.backend.error || 'sin respuesta' },
-    { label: http.cocina.label, ok: http.cocina.ok, text: http.cocina.ok ? `HTTP ${http.cocina.status}` : http.cocina.error || 'sin respuesta' },
-    { label: http.expo.label, ok: http.expo.ok, text: http.expo.ok ? `HTTP ${http.expo.status}` : http.expo.error || 'sin respuesta' },
-  ];
-  grid.innerHTML = cards
-    .map((c) => `
+  if (grid) {
+    const cards = [
+      { label: 'MongoDB (ping)', ok: mongo.ok, text: mongo.ok ? mongo.message : mongo.message, sub: mongo.uriMasked || '' },
+      { label: http.backend.label, ok: http.backend.ok, text: http.backend.ok ? `HTTP ${http.backend.status}` : http.backend.error || 'sin respuesta' },
+      { label: http.cocina.label, ok: http.cocina.ok, text: http.cocina.ok ? `HTTP ${http.cocina.status}` : http.cocina.error || 'sin respuesta' },
+      { label: http.expo.label, ok: http.expo.ok, text: http.expo.ok ? `HTTP ${http.expo.status}` : http.expo.error || 'sin respuesta' },
+    ];
+    grid.innerHTML = cards
+      .map((c) => `
     <div class="stat-card ${c.ok ? 'stat-ok' : 'stat-bad'}">
       <div class="label">${escapeHtml(c.label)}</div>
       <div class="value">${escapeHtml(c.text)}</div>
       ${c.sub ? `<div class="hint" style="margin-top:6px">${escapeHtml(c.sub)}</div>` : ''}
     </div>`)
-    .join('');
+      .join('');
+  }
+  await refreshQuickLinks();
 }
 
 async function refreshMongoInfo() {
@@ -1009,15 +1027,21 @@ async function init() {
   $('btn-check-updates-all').addEventListener('click', () => checkUpdatesAll());
 
   async function openQuickLink(target) {
+    const info = typeof api.getQuickLinks === 'function' ? await api.getQuickLinks() : null;
+    const url = info?.urls?.[target];
+    if (url) {
+      await api.openExternal(url);
+      return;
+    }
     const cfg = await api.getConfig();
     const backendPort = cfg.ports?.backend ?? 3000;
     const cocinaPort = cfg.ports?.cocina ?? 3001;
     const base = (cfg.publicBaseUrl || `http://127.0.0.1:${backendPort}`).replace(/\/$/, '');
-    let url = base;
-    if (target === 'cocina') url = `http://127.0.0.1:${cocinaPort}/`;
-    else if (target === 'login') url = `${base}/login`;
-    else if (target === 'root') url = `${base}/`;
-    await api.openExternal(url);
+    let fallback = base;
+    if (target === 'cocina') fallback = `http://127.0.0.1:${cocinaPort}/`;
+    else if (target === 'login') fallback = `${base}/login`;
+    else if (target === 'root') fallback = `${base}/`;
+    await api.openExternal(fallback);
   }
 
   document.querySelectorAll('[data-open]').forEach((btn) => {

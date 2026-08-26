@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('launcherAPI', {
   dataList: () => ipcRenderer.invoke('data-list'),
   dataDeleteManifest: () => ipcRenderer.invoke('data-delete-manifest'),
   openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
+  getQuickLinks: () => ipcRenderer.invoke('get-quick-links'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
   getLogs: () => ipcRenderer.invoke('get-logs'),

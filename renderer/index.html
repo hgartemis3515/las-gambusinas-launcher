@@ -183,23 +183,36 @@
             </div>
 
             <div class="panel">
-              <h2>Repositorios</h2>
-              <div class="repo-strip" id="repo-strip-summary"></div>
+              <h2>Enlaces rápidos</h2>
+              <p class="hint">Usan la IP LAN de este PC (la del backend). Si cambia la red, se actualizan solos.</p>
+              <div class="links links-quick">
+                <button type="button" class="btn btn-ghost link-quick" data-open="login">
+                  <i data-lucide="log-in" class="link-ico"></i>
+                  <span class="link-quick-text">
+                    <span>Login dashboard</span>
+                    <span class="link-quick-url" data-link-url="login">—</span>
+                  </span>
+                </button>
+                <button type="button" class="btn btn-ghost link-quick" data-open="root">
+                  <i data-lucide="server" class="link-ico"></i>
+                  <span class="link-quick-text">
+                    <span>Backend /</span>
+                    <span class="link-quick-url" data-link-url="root">—</span>
+                  </span>
+                </button>
+                <button type="button" class="btn btn-ghost link-quick" data-open="cocina">
+                  <i data-lucide="utensils" class="link-ico"></i>
+                  <span class="link-quick-text">
+                    <span>Cocina</span>
+                    <span class="link-quick-url" data-link-url="cocina">—</span>
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div class="panel">
-              <h2>Enlaces rápidos</h2>
-              <div class="links links-quick">
-                <button type="button" class="btn btn-ghost link-quick" data-open="cocina">
-                  <i data-lucide="utensils" class="link-ico"></i><span>Cocina</span>
-                </button>
-                <button type="button" class="btn btn-ghost link-quick" data-open="login">
-                  <i data-lucide="log-in" class="link-ico"></i><span>Login dashboard</span>
-                </button>
-                <button type="button" class="btn btn-ghost link-quick" data-open="root">
-                  <i data-lucide="server" class="link-ico"></i><span>Backend /</span>
-                </button>
-              </div>
+              <h2>Repositorios</h2>
+              <div class="repo-strip" id="repo-strip-summary"></div>
             </div>
           </section>
 
@@ -474,8 +487,8 @@
                   <input type="text" id="npm-backend" placeholder="start" />
                 </div>
                 <div class="field">
-                  <label>URL base (login / enlaces)</label>
-                  <input type="text" id="public-base-url" placeholder="http://127.0.0.1:3000" />
+                  <label>URL pública (IP LAN, auto)</label>
+                  <input type="text" id="public-base-url" placeholder="http://192.168.x.x:3000" readonly />
                 </div>
               </div>
               <div class="field-row" style="margin-top: 8px">

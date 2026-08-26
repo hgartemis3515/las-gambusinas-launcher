@@ -681,8 +681,23 @@ body {
 }
 .link-quick {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  text-align: left;
+}
+.link-quick-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.link-quick-url {
+  font-size: 10px;
+  opacity: 0.65;
+  font-family: ui-monospace, Consolas, monospace;
+  word-break: break-all;
+  max-width: 220px;
+  line-height: 1.2;
 }
 .link-ico, .link-quick svg {
   width: 16px;

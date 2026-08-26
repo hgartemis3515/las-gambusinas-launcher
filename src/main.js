@@ -11,6 +11,7 @@ const { detectMonorepoRoot, repoLocalStatus, FOLDER_BACKEND, FOLDER_COCINA, FOLD
 const { gitClone } = require('./lib/clone-service');
 const { gitCheckUpdates } = require('./lib/git-updates');
 const { getMonorepoRoot } = require('./lib/paths');
+const { buildServiceUrls } = require('./lib/lan-ip');
 
 /** Carpeta del proyecto launcher (desarrollo) o carpeta del .exe instalado (producción). */
 function getLauncherRoot() {
@@ -188,6 +189,10 @@ app.on('before-quit', async (e) => {
 });
 
 ipcMain.handle('get-config', () => loadConfig());
+ipcMain.handle('get-quick-links', () => {
+  const cfg = loadConfig();
+  return buildServiceUrls(cfg);
+});
 ipcMain.handle('save-config', (_e, cfg) => {
   saveConfig(cfg);
   syncAutostartShortcut(cfg);
