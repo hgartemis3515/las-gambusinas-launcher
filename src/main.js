@@ -12,7 +12,7 @@ const { gitClone } = require('./lib/clone-service');
 const { gitCheckUpdates } = require('./lib/git-updates');
 const { getMonorepoRoot } = require('./lib/paths');
 const { buildServiceUrls } = require('./lib/lan-ip');
-const { pullIfBehind, actualizarLauncher } = require('./lib/auto-update');
+const { pullIfBehind } = require('./lib/auto-update');
 
 /** Carpeta del proyecto launcher (desarrollo) o carpeta del .exe instalado (producción). */
 function getLauncherRoot() {
@@ -140,6 +140,39 @@ function startConfigured(service) {
 
 let autoUpdateTimer = null;
 let relaunching = false;
+let setupUpdater = null;
+
+function startSetupUpdater() {
+  if (!app.isPackaged) return null;
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (err) {
+    pushLog({ service: 'launcher', line: `[setup] No se cargó el actualizador: ${err.message}`, ts: Date.now() });
+    return null;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (info) => {
+    pushLog({ service: 'launcher', line: `[setup] Hay v${info.version}. Bajando el instalador para actualizar sin desinstalar…`, ts: Date.now() });
+  });
+  autoUpdater.on('update-not-available', () => {
+    pushLog({ service: 'launcher', line: `[setup] El launcher está al día (v${app.getVersion()}).`, ts: Date.now() });
+  });
+  autoUpdater.on('error', (err) => {
+    pushLog({ service: 'launcher', line: `[setup] ${err.message || err}`, ts: Date.now() });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    pushLog({ service: 'launcher', line: `[setup] v${info.version} lista. Se instala encima y se vuelve a abrir.`, ts: Date.now() });
+    relaunching = true;
+    setImmediate(() => autoUpdater.quitAndInstall(true, true));
+  });
+  const check = () => autoUpdater.checkForUpdates().catch((err) => {
+    pushLog({ service: 'launcher', line: `[setup] ${err.message || err}`, ts: Date.now() });
+  });
+  check();
+  return { check };
+}
 
 async function runAutoUpdates() {
   if (relaunching) return;
@@ -147,23 +180,6 @@ async function runAutoUpdates() {
   if (cfg.autoUpdate === false) return;
   const gitExe = cfg.git?.executable || 'git';
   const log = (line) => pushLog({ service: 'launcher', line: `[auto] ${line}`, ts: Date.now() });
-  try {
-    const reiniciar = await actualizarLauncher({
-      packaged: app.isPackaged,
-      version: app.getVersion(),
-      launcherRoot: getLauncherRoot(),
-      gitExe,
-      log,
-    });
-    if (reiniciar) {
-      relaunching = true;
-      if (!app.isPackaged) app.relaunch();
-      app.quit();
-      return;
-    }
-  } catch (err) {
-    log(`No se pudo actualizar el launcher: ${err.message}`);
-  }
 
   const repos = [
     { key: 'backend', service: 'backend' },
@@ -217,6 +233,7 @@ function createWindow() {
 
   mainWindow.webContents.once('did-finish-load', () => {
     const cfg = loadConfig();
+    if (cfg.autoUpdate !== false) setupUpdater = startSetupUpdater();
     runAutoUpdates()
       .catch((e) => pushLog({ service: 'launcher', line: `[auto] Error: ${e.message}`, ts: Date.now() }))
       .finally(() => {
@@ -229,6 +246,8 @@ function createWindow() {
       });
     if (autoUpdateTimer) clearInterval(autoUpdateTimer);
     autoUpdateTimer = setInterval(() => {
+      if (loadConfig().autoUpdate === false) return;
+      if (setupUpdater) setupUpdater.check();
       runAutoUpdates().catch((e) => pushLog({ service: 'launcher', line: `[auto] Error: ${e.message}`, ts: Date.now() }));
     }, 2 * 60 * 1000);
   });
@@ -946,6 +965,23 @@ ipcMain.handle('get-launcher-info', () => {
 
 ipcMain.handle('check-launcher-update', async () => {
   const currentVersion = app.getVersion();
+  if (app.isPackaged && setupUpdater) {
+    setupUpdater.check();
+    return {
+      ok: true,
+      currentVersion,
+      hasUpdate: false,
+      message: `Buscando un setup más nuevo que v${currentVersion}. Si existe, se instala solo encima.`,
+    };
+  }
+  if (!app.isPackaged) {
+    return {
+      ok: true,
+      currentVersion,
+      hasUpdate: false,
+      message: `Esta copia es código (v${currentVersion}), no el setup instalado. El auto-update del .exe corre en el launcher instalado.`,
+    };
+  }
   const owner = 'hgartemis3515';
   const repo = 'las-gambusinas-launcher';
   try {

@@ -610,7 +610,7 @@
               <label class="check row-check"><input type="checkbox" id="cfg-autostart-win" /> Launcher con Windows (Inicio)</label>
               <label class="check row-check"><input type="checkbox" id="cfg-autostart-svc" /> Al abrir: iniciar backend, cocina y facturación</label>
               <label class="check row-check"><input type="checkbox" id="cfg-autostart-expo" /> También iniciar Expo</label>
-              <label class="check row-check"><input type="checkbox" id="cfg-auto-update" /> Actualizar solo al publicar (git pull y, si hay release, el instalador)</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-auto-update" /> Al publicar un setup nuevo, actualizar el launcher instalado sin desinstalar</label>
               <label class="check row-check"><input type="checkbox" id="cfg-mongo-check" /> Comprobar MongoDB antes de auto-iniciar backend</label>
               <label class="check row-check"><input type="checkbox" id="cfg-mongo-force" /> Forzar backend si Mongo falla</label>
               <label class="check row-check"><input type="checkbox" id="cfg-stop-quit" /> Al cerrar launcher, detener servicios</label>
@@ -637,7 +637,7 @@
               </div>
               <div class="row" style="margin-top:10px">
                 <button type="button" id="btn-check-launcher-update" class="btn btn-ghost">
-                  <i data-lucide="refresh-cw" class="btn-icon"></i> Comprobar actualizaciones del launcher
+                  <i data-lucide="refresh-cw" class="btn-icon"></i> Buscar setup nuevo e instalarlo
                 </button>
               </div>
               <div id="launcher-update-result" class="launcher-update-result"></div>
