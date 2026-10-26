@@ -56,7 +56,8 @@
       {
         "provider": "github",
         "owner": "hgartemis3515",
-        "repo": "las-gambusinas-launcher"
+        "repo": "las-gambusinas-launcher",
+        "releaseType": "release"
       }
     ],
     "win": {

@@ -163,9 +163,23 @@ function startSetupUpdater() {
     pushLog({ service: 'launcher', line: `[setup] ${err.message || err}`, ts: Date.now() });
   });
   autoUpdater.on('update-downloaded', (info) => {
-    pushLog({ service: 'launcher', line: `[setup] v${info.version} lista. Se instala encima y se vuelve a abrir.`, ts: Date.now() });
+    if (relaunching) return;
     relaunching = true;
-    setImmediate(() => autoUpdater.quitAndInstall(true, true));
+    pushLog({ service: 'launcher', line: `[setup] v${info.version} lista. Se instala encima y se vuelve a abrir.`, ts: Date.now() });
+    setImmediate(async () => {
+      try {
+        if (easChild && easChild.pid) {
+          const treeKill = require('tree-kill');
+          await new Promise((res) => treeKill(easChild.pid, 'SIGTERM', () => res()));
+          easChild = null;
+        }
+        await pm.stopAll();
+      } catch (err) {
+        pushLog({ service: 'launcher', line: `[setup] ${err.message || err}`, ts: Date.now() });
+      }
+      allowQuitAfterCleanup = true;
+      autoUpdater.quitAndInstall(true, true);
+    });
   });
   const check = () => autoUpdater.checkForUpdates().catch((err) => {
     pushLog({ service: 'launcher', line: `[setup] ${err.message || err}`, ts: Date.now() });
@@ -281,9 +295,9 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', async (e) => {
+  if (relaunching || allowQuitAfterCleanup) return;
   const cfg = loadConfig();
   if (!cfg.stopAllOnQuit) return;
-  if (allowQuitAfterCleanup) return;
   e.preventDefault();
   pushLog({ service: 'launcher', line: '[launcher] Deteniendo servicios…', ts: Date.now() });
   if (easChild && easChild.pid) {
