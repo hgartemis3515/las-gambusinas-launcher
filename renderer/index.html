@@ -137,7 +137,7 @@
               <div class="hero-content">
                 <div class="hero-text">
                   <h2>Control centralizado</h2>
-                  <p>Inicie, detenga y supervise los tres servicios desde un solo lugar.</p>
+                  <p>Inicie, detenga y supervise backend, cocina, facturación y mozos desde un solo lugar.</p>
                 </div>
                 <div class="hero-actions">
                   <button type="button" id="btn-start-all" class="btn btn-start-all">
@@ -167,6 +167,11 @@
                 <div class="launch-step" id="step-cocina" data-step="cocina">
                   <span class="launch-step-dot"></span>
                   <span class="launch-step-label">Cocina</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
+                <div class="launch-step" id="step-facturacion" data-step="facturacion">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Facturación</span>
                   <span class="launch-step-status">Esperando…</span>
                 </div>
                 <div class="launch-step" id="step-expo" data-step="expo">
@@ -205,6 +210,13 @@
                   <span class="link-quick-text">
                     <span>Cocina</span>
                     <span class="link-quick-url" data-link-url="cocina">—</span>
+                  </span>
+                </button>
+                <button type="button" class="btn btn-ghost link-quick" data-open="facturacion">
+                  <i data-lucide="receipt" class="link-ico"></i>
+                  <span class="link-quick-text">
+                    <span>Facturación</span>
+                    <span class="link-quick-url" data-link-url="facturacion">—</span>
                   </span>
                 </button>
               </div>
@@ -249,6 +261,11 @@
                   <span class="launch-step-label">Cocina</span>
                   <span class="launch-step-status">Esperando…</span>
                 </div>
+                <div class="launch-step" id="step-svc-facturacion" data-step="facturacion">
+                  <span class="launch-step-dot"></span>
+                  <span class="launch-step-label">Facturación</span>
+                  <span class="launch-step-status">Esperando…</span>
+                </div>
                 <div class="launch-step" id="step-svc-expo" data-step="expo">
                   <span class="launch-step-dot"></span>
                   <span class="launch-step-label">Mozos (Expo)</span>
@@ -261,6 +278,7 @@
               <p class="hint">
                 <strong>Backend:</strong> por defecto <code>npm run start</code>.
                 <strong>Cocina:</strong> front web en el puerto configurado.
+                <strong>Facturación:</strong> Vite en el puerto configurado (5174).
                 <strong>Mozos:</strong> Expo Metro para desarrollo Android.
               </p>
               <div class="services" id="services-row"></div>
@@ -272,8 +290,8 @@
             <div class="panel">
               <h2>Identificador automático de rutas</h2>
               <p class="hint">
-                Busca la carpeta que contiene <strong>Backend-LasGambusinas</strong>, <strong>appcocina</strong> y
-                <strong>Las-Gambusinas</strong>.
+                Busca la carpeta que contiene <strong>Backend-LasGambusinas</strong>, <strong>appcocina</strong>,
+                <strong>Las-Gambusinas</strong> y <strong>Sistema de Facturacion</strong>.
               </p>
               <div class="row">
                 <button type="button" id="btn-detect-only" class="btn btn-ghost">Solo analizar (vista previa)</button>
@@ -310,7 +328,7 @@
                 </div>
               </div>
               <div class="field-row">
-                <button type="button" id="btn-clone-all" class="btn btn-primary">Clonar los 3 que falten</button>
+                <button type="button" id="btn-clone-all" class="btn btn-primary">Clonar los que falten</button>
               </div>
               <div class="task-progress hidden" id="clone-progress">
                 <div class="task-progress-bar-wrap">
@@ -332,6 +350,10 @@
               <div class="field">
                 <label>URL Git — Mozos</label>
                 <input type="text" id="clone-url-mozos" />
+              </div>
+              <div class="field">
+                <label>URL Git — Facturación</label>
+                <input type="text" id="clone-url-facturacion" />
               </div>
             </div>
 
@@ -358,10 +380,18 @@
                   <button type="button" class="btn btn-ghost btn-pick-path" data-target="path-mozos">Examinar…</button>
                 </div>
               </div>
+              <div class="field">
+                <label>Sistema de facturación</label>
+                <div class="field-inline">
+                  <input type="text" id="path-facturacion" />
+                  <button type="button" class="btn btn-ghost btn-pick-path" data-target="path-facturacion">Examinar…</button>
+                </div>
+              </div>
               <div class="field-row">
                 <button type="button" id="btn-clone-backend" class="btn btn-ghost" data-clone="backend">Clonar solo backend</button>
                 <button type="button" id="btn-clone-cocina" class="btn btn-ghost" data-clone="cocina">Clonar solo cocina</button>
                 <button type="button" id="btn-clone-mozos" class="btn btn-ghost" data-clone="mozos">Clonar solo mozos</button>
+                <button type="button" id="btn-clone-facturacion" class="btn btn-ghost" data-clone="facturacion">Clonar solo facturación</button>
               </div>
             </div>
           </section>
@@ -372,7 +402,7 @@
               <h2>Git y actualizaciones</h2>
               <p class="hint">Compruebe si hay actualizaciones disponibles y aplique <code>git pull</code> si lo desea.</p>
               <div class="row" style="margin-bottom: 12px">
-                <button type="button" id="btn-check-updates-all" class="btn btn-primary">Comprobar actualizaciones (los 3)</button>
+                <button type="button" id="btn-check-updates-all" class="btn btn-primary">Comprobar actualizaciones</button>
               </div>
               <div class="git-grid" id="git-grid"></div>
               <div class="task-progress hidden" id="git-progress">
@@ -543,6 +573,28 @@
               </div>
             </div>
 
+            <div class="panel">
+              <h2><i data-lucide="receipt" class="panel-icon"></i> Facturación</h2>
+              <div class="field-row three">
+                <div class="field">
+                  <label>Puerto</label>
+                  <input type="number" id="port-facturacion" placeholder="5174" />
+                </div>
+                <div class="field">
+                  <label>Script npm</label>
+                  <input type="text" id="npm-facturacion" placeholder="start" />
+                </div>
+                <div class="field">
+                  <label></label>
+                </div>
+              </div>
+              <div class="field-row" style="margin-top: 8px">
+                <button type="button" class="btn btn-ghost btn-open-link" data-open="facturacion">
+                  <i data-lucide="external-link" class="btn-icon"></i> Abrir facturación
+                </button>
+              </div>
+            </div>
+
             <!-- Datos y manifiesto -->
             <div class="panel">
               <h2>Datos y manifiesto</h2>
@@ -556,8 +608,9 @@
             <div class="panel">
               <h2>Inicio automático y MongoDB</h2>
               <label class="check row-check"><input type="checkbox" id="cfg-autostart-win" /> Launcher con Windows (Inicio)</label>
-              <label class="check row-check"><input type="checkbox" id="cfg-autostart-svc" /> Al abrir: iniciar backend y cocina</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-autostart-svc" /> Al abrir: iniciar backend, cocina y facturación</label>
               <label class="check row-check"><input type="checkbox" id="cfg-autostart-expo" /> También iniciar Expo</label>
+              <label class="check row-check"><input type="checkbox" id="cfg-auto-update" /> Actualizar solo al publicar (git pull y, si hay release, el instalador)</label>
               <label class="check row-check"><input type="checkbox" id="cfg-mongo-check" /> Comprobar MongoDB antes de auto-iniciar backend</label>
               <label class="check row-check"><input type="checkbox" id="cfg-mongo-force" /> Forzar backend si Mongo falla</label>
               <label class="check row-check"><input type="checkbox" id="cfg-stop-quit" /> Al cerrar launcher, detener servicios</label>

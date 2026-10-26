@@ -2,7 +2,7 @@ const api = window.launcherAPI;
 const $ = (id) => document.getElementById(id);
 
 /** @type {Record<string, any>} */
-let lastUpdates = { backend: null, cocina: null, mozos: null };
+let lastUpdates = { backend: null, cocina: null, mozos: null, facturacion: null };
 
 function prefersReducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
@@ -174,11 +174,13 @@ function readConfigFromForm() {
       backend: $('path-backend').value.trim(),
       cocina: $('path-cocina').value.trim(),
       mozos: $('path-mozos').value.trim(),
+      facturacion: $('path-facturacion').value.trim(),
     },
     ports: {
       backend: Number($('port-backend').value) || 3000,
       cocina: Number($('port-cocina').value) || 3001,
       expoMetro: Number($('port-expo').value) || 8081,
+      facturacion: Number($('port-facturacion').value) || 5174,
     },
     publicBaseUrl: $('public-base-url').value.trim() || '',
     dataManifestPath: $('data-manifest-path').value.trim() || 'data/data.json',
@@ -187,12 +189,15 @@ function readConfigFromForm() {
       backend: $('clone-url-backend').value.trim(),
       cocina: $('clone-url-cocina').value.trim(),
       mozos: $('clone-url-mozos').value.trim(),
+      facturacion: $('clone-url-facturacion').value.trim(),
     },
     npmScripts: {
       backend: $('npm-backend').value.trim() || 'start',
       cocina: $('npm-cocina').value.trim() || 'start',
       expo: $('npm-expo').value.trim() || 'start',
+      facturacion: $('npm-facturacion').value.trim() || 'start',
     },
+    autoUpdate: $('cfg-auto-update').checked,
     autoStartLauncherWithWindows: $('cfg-autostart-win').checked,
     autoStartServicesOnLauncherOpen: $('cfg-autostart-svc').checked,
     autoStartExpoWithServices: $('cfg-autostart-expo').checked,
@@ -215,18 +220,23 @@ async function fillForm(cfg) {
   $('path-backend').value = cfg.paths?.backend || '';
   $('path-cocina').value = cfg.paths?.cocina || '';
   $('path-mozos').value = cfg.paths?.mozos || '';
+  $('path-facturacion').value = cfg.paths?.facturacion || '';
   $('port-backend').value = cfg.ports?.backend ?? 3000;
   $('port-cocina').value = cfg.ports?.cocina ?? 3001;
   $('port-expo').value = cfg.ports?.expoMetro ?? 8081;
+  $('port-facturacion').value = cfg.ports?.facturacion ?? 5174;
   void refreshQuickLinks();
   $('data-manifest-path').value = cfg.dataManifestPath || 'data/data.json';
   $('clone-parent-dir').value = cfg.cloneParentDir || '';
   $('clone-url-backend').value = cfg.cloneUrls?.backend || '';
   $('clone-url-cocina').value = cfg.cloneUrls?.cocina || '';
   $('clone-url-mozos').value = cfg.cloneUrls?.mozos || '';
+  $('clone-url-facturacion').value = cfg.cloneUrls?.facturacion || '';
   $('npm-backend').value = cfg.npmScripts?.backend || 'start';
   $('npm-cocina').value = cfg.npmScripts?.cocina || 'start';
   $('npm-expo').value = cfg.npmScripts?.expo || 'start';
+  $('npm-facturacion').value = cfg.npmScripts?.facturacion || 'start';
+  $('cfg-auto-update').checked = cfg.autoUpdate !== false;
   $('cfg-autostart-win').checked = !!cfg.autoStartLauncherWithWindows;
   $('cfg-autostart-svc').checked = !!cfg.autoStartServicesOnLauncherOpen;
   $('cfg-autostart-expo').checked = !!cfg.autoStartExpoWithServices;
@@ -265,6 +275,7 @@ async function refreshMongoAndHttp() {
       { label: http.backend.label, ok: http.backend.ok, text: http.backend.ok ? `HTTP ${http.backend.status}` : http.backend.error || 'sin respuesta' },
       { label: http.cocina.label, ok: http.cocina.ok, text: http.cocina.ok ? `HTTP ${http.cocina.status}` : http.cocina.error || 'sin respuesta' },
       { label: http.expo.label, ok: http.expo.ok, text: http.expo.ok ? `HTTP ${http.expo.status}` : http.expo.error || 'sin respuesta' },
+      { label: http.facturacion.label, ok: http.facturacion.ok, text: http.facturacion.ok ? `HTTP ${http.facturacion.status}` : http.facturacion.error || 'sin respuesta' },
     ];
     grid.innerHTML = cards
       .map((c) => `
@@ -352,7 +363,7 @@ async function refreshNpmInstallGrid() {
   const checks = await api.checkNodeModules();
   const grid = $('npm-install-grid');
   if (!grid) return;
-  const labels = { backend: 'Backend', cocina: 'Cocina', expo: 'Mozos (Expo)' };
+  const labels = { backend: 'Backend', cocina: 'Cocina', expo: 'Mozos (Expo)', facturacion: 'Facturación' };
   grid.innerHTML = '';
   for (const [key, info] of Object.entries(checks)) {
     const exists = info.hasPackageJson;
@@ -412,8 +423,8 @@ async function refreshServices() {
   cachedServiceStatus = st;
   const row = $('services-row');
   if (!row) return;
-  const names = { backend: 'Backend', cocina: 'App cocina', expo: 'Expo (mozos)' };
-  row.innerHTML = ['backend', 'cocina', 'expo']
+  const names = { backend: 'Backend', cocina: 'App cocina', facturacion: 'Facturación', expo: 'Expo (mozos)' };
+  row.innerHTML = ['backend', 'cocina', 'facturacion', 'expo']
     .map((id) => {
       const s = st[id];
       const dotCls = s.running ? 'running' : 'stopped';
@@ -463,13 +474,14 @@ async function refreshServices() {
 async function refreshGlobalStatusStrip() {
   const [st, http] = await Promise.all([api.serviceStatus(), api.httpAppsStatus()]);
   cachedServiceStatus = st;
-  cachedHttpOk = { backend: http.backend.ok, cocina: http.cocina.ok, expo: http.expo.ok };
+  cachedHttpOk = { backend: http.backend.ok, cocina: http.cocina.ok, expo: http.expo.ok, facturacion: http.facturacion.ok };
   const strip = $('status-strip');
   if (!strip) return;
 
   const chips = [
     { id: 'backend', label: 'Backend', running: st.backend.running, httpOk: http.backend.ok },
     { id: 'cocina', label: 'Cocina', running: st.cocina.running, httpOk: http.cocina.ok },
+    { id: 'facturacion', label: 'Facturación', running: st.facturacion.running, httpOk: http.facturacion.ok },
     { id: 'expo', label: 'Mozos', running: st.expo.running, httpOk: http.expo.ok },
   ];
 
@@ -498,7 +510,7 @@ function pillHtml(title, st) {
 
 async function refreshRepoStrip(targetId) {
   const st = await api.reposLocalStatus();
-  const html = pillHtml('Backend', st.backend) + pillHtml('Cocina', st.cocina) + pillHtml('Mozos', st.mozos);
+  const html = pillHtml('Backend', st.backend) + pillHtml('Cocina', st.cocina) + pillHtml('Facturación', st.facturacion) + pillHtml('Mozos', st.mozos);
   const el = $(targetId);
   if (el) el.innerHTML = html;
 }
@@ -508,6 +520,7 @@ async function refreshGitGrid() {
     { key: 'backend', title: 'Backend-LasGambusinas' },
     { key: 'cocina', title: 'appcocina' },
     { key: 'mozos', title: 'Las-Gambusinas (mozos)' },
+    { key: 'facturacion', title: 'Sistema de Facturacion' },
   ];
   const host = $('git-grid');
   if (!host) return;
@@ -586,7 +599,7 @@ async function refreshDataBanners() {
 }
 
 async function checkUpdatesAll() {
-  for (const k of ['backend', 'cocina', 'mozos']) {
+  for (const k of ['backend', 'cocina', 'mozos', 'facturacion']) {
     lastUpdates[k] = await api.gitCheckUpdates(k);
   }
   await refreshGitGrid();
@@ -653,10 +666,11 @@ async function startAllServices() {
   showLaunchProgress(svcProgress, svcSteps);
 
   // Reset steps
-  const serviceIds = ['backend', 'cocina', ...(includeExpo ? ['expo'] : [])];
+  const serviceIds = ['backend', 'cocina', 'facturacion', ...(includeExpo ? ['expo'] : [])];
   const allStepIds = [
     { key: 'backend', ids: ['step-backend', 'step-svc-backend'] },
     { key: 'cocina', ids: ['step-cocina', 'step-svc-cocina'] },
+    { key: 'facturacion', ids: ['step-facturacion', 'step-svc-facturacion'] },
     { key: 'expo', ids: ['step-expo', 'step-svc-expo'] },
   ];
 
@@ -743,15 +757,15 @@ function disableStartButtons(disabled) {
 }
 
 /** Cached service running state for button enable/disable logic. */
-let cachedServiceStatus = { backend: { running: false }, cocina: { running: false }, expo: { running: false } };
-let cachedHttpOk = { backend: false, cocina: false, expo: false };
+let cachedServiceStatus = { backend: { running: false }, cocina: { running: false }, facturacion: { running: false }, expo: { running: false } };
+let cachedHttpOk = { backend: false, cocina: false, facturacion: false, expo: false };
 
 function updateStartStopButtons() {
   const st = cachedServiceStatus;
   const includeExpo = $('start-all-include-expo')?.checked
     ?? $('start-all-include-expo-svc')?.checked
     ?? true;
-  const serviceKeys = includeExpo ? ['backend', 'cocina', 'expo'] : ['backend', 'cocina'];
+  const serviceKeys = includeExpo ? ['backend', 'cocina', 'facturacion', 'expo'] : ['backend', 'cocina', 'facturacion'];
   const anyRunning = serviceKeys.some((k) => st[k]?.running);
   const allRunning = serviceKeys.every((k) => st[k]?.running);
 
@@ -772,7 +786,7 @@ async function stopAllServices() {
   pulseBtn($('btn-stop-all') || $('btn-stop-all-svc'));
   appendLogLine({ service: 'launcher', line: 'Deteniendo todos los servicios…', ts: Date.now() });
 
-  for (const s of ['backend', 'cocina', 'expo']) {
+  for (const s of ['backend', 'cocina', 'facturacion', 'expo']) {
     await api.serviceStop(s);
   }
 
@@ -1039,6 +1053,7 @@ async function init() {
     const base = (cfg.publicBaseUrl || `http://127.0.0.1:${backendPort}`).replace(/\/$/, '');
     let fallback = base;
     if (target === 'cocina') fallback = `http://127.0.0.1:${cocinaPort}/`;
+    else if (target === 'facturacion') fallback = `http://127.0.0.1:${cfg.ports?.facturacion ?? 5174}/`;
     else if (target === 'login') fallback = `${base}/login`;
     else if (target === 'root') fallback = `${base}/`;
     await api.openExternal(fallback);

@@ -7,11 +7,12 @@ const { appsStatus } = require('./lib/http-status');
 const { gitStatus, runGit } = require('./lib/git-service');
 const { listJsonFiles, deleteManifest } = require('./lib/data-service');
 const { setWindowsAutostart, isAutostartEnabled } = require('./lib/autostart-win');
-const { detectMonorepoRoot, repoLocalStatus, FOLDER_BACKEND, FOLDER_COCINA, FOLDER_MOZOS } = require('./lib/path-detector');
+const { detectMonorepoRoot, repoLocalStatus, FOLDER_BACKEND, FOLDER_COCINA, FOLDER_MOZOS, FOLDER_FACTURACION } = require('./lib/path-detector');
 const { gitClone } = require('./lib/clone-service');
 const { gitCheckUpdates } = require('./lib/git-updates');
 const { getMonorepoRoot } = require('./lib/paths');
 const { buildServiceUrls } = require('./lib/lan-ip');
+const { pullIfBehind, actualizarLauncher } = require('./lib/auto-update');
 
 /** Carpeta del proyecto launcher (desarrollo) o carpeta del .exe instalado (producción). */
 function getLauncherRoot() {
@@ -103,6 +104,13 @@ async function runAutoStartServices() {
     env: { PORT: String(cfg.ports?.cocina ?? 3001) },
   });
 
+  await sleep(between);
+  pm.start('facturacion', {
+    cwd: cfg.paths.facturacion,
+    npmScript: cfg.npmScripts?.facturacion || 'start',
+    env: { PORT: String(cfg.ports?.facturacion ?? 5174) },
+  });
+
   if (cfg.autoStartExpoWithServices) {
     await sleep(between);
     pm.start('expo', {
@@ -110,6 +118,78 @@ async function runAutoStartServices() {
       npmScript: cfg.npmScripts?.expo || 'start',
       env: { PORT: String(cfg.ports?.expoMetro ?? 8081) },
     });
+  }
+}
+
+function startConfigured(service) {
+  const cfg = loadConfig();
+  if (service === 'backend') {
+    return pm.start('backend', { cwd: cfg.paths.backend, npmScript: cfg.npmScripts?.backend || 'start', env: { PORT: String(cfg.ports?.backend ?? 3000) } });
+  }
+  if (service === 'cocina') {
+    return pm.start('cocina', { cwd: cfg.paths.cocina, npmScript: cfg.npmScripts?.cocina || 'start', env: { PORT: String(cfg.ports?.cocina ?? 3001) } });
+  }
+  if (service === 'facturacion') {
+    return pm.start('facturacion', { cwd: cfg.paths.facturacion, npmScript: cfg.npmScripts?.facturacion || 'start', env: { PORT: String(cfg.ports?.facturacion ?? 5174) } });
+  }
+  if (service === 'expo') {
+    return pm.start('expo', { cwd: cfg.paths.mozos, npmScript: cfg.npmScripts?.expo || 'start', env: { PORT: String(cfg.ports?.expoMetro ?? 8081) } });
+  }
+  return { ok: false };
+}
+
+let autoUpdateTimer = null;
+let relaunching = false;
+
+async function runAutoUpdates() {
+  if (relaunching) return;
+  const cfg = loadConfig();
+  if (cfg.autoUpdate === false) return;
+  const gitExe = cfg.git?.executable || 'git';
+  const log = (line) => pushLog({ service: 'launcher', line: `[auto] ${line}`, ts: Date.now() });
+  try {
+    const reiniciar = await actualizarLauncher({
+      packaged: app.isPackaged,
+      version: app.getVersion(),
+      launcherRoot: getLauncherRoot(),
+      gitExe,
+      log,
+    });
+    if (reiniciar) {
+      relaunching = true;
+      if (!app.isPackaged) app.relaunch();
+      app.quit();
+      return;
+    }
+  } catch (err) {
+    log(`No se pudo actualizar el launcher: ${err.message}`);
+  }
+
+  const repos = [
+    { key: 'backend', service: 'backend' },
+    { key: 'cocina', service: 'cocina' },
+    { key: 'mozos', service: 'expo' },
+    { key: 'facturacion', service: 'facturacion' },
+  ];
+  for (const repo of repos) {
+    const dir = cfg.paths?.[repo.key];
+    if (!dir) continue;
+    try {
+      const r = await pullIfBehind(dir, gitExe);
+      if (r.skipped === 'dirty') {
+        log(`${repo.key}: hay commits nuevos y cambios locales. No se hace pull.`);
+        continue;
+      }
+      if (!r.updated) continue;
+      log(`${repo.key}: código nuevo aplicado.`);
+      if (pm.status()[repo.service]?.running) {
+        await pm.stop(repo.service);
+        startConfigured(repo.service);
+        log(`${repo.service}: reiniciado con el código nuevo.`);
+      }
+    } catch (err) {
+      log(`${repo.key}: ${err.message}`);
+    }
   }
 }
 
@@ -137,11 +217,20 @@ function createWindow() {
 
   mainWindow.webContents.once('did-finish-load', () => {
     const cfg = loadConfig();
-    if (cfg.autoStartServicesOnLauncherOpen) {
-      runAutoStartServices().catch((e) =>
-        pushLog({ service: 'launcher', line: `[auto] Error: ${e.message}`, ts: Date.now() }),
-      );
-    }
+    runAutoUpdates()
+      .catch((e) => pushLog({ service: 'launcher', line: `[auto] Error: ${e.message}`, ts: Date.now() }))
+      .finally(() => {
+        if (relaunching) return;
+        if (cfg.autoStartServicesOnLauncherOpen) {
+          runAutoStartServices().catch((e) =>
+            pushLog({ service: 'launcher', line: `[auto] Error: ${e.message}`, ts: Date.now() }),
+          );
+        }
+      });
+    if (autoUpdateTimer) clearInterval(autoUpdateTimer);
+    autoUpdateTimer = setInterval(() => {
+      runAutoUpdates().catch((e) => pushLog({ service: 'launcher', line: `[auto] Error: ${e.message}`, ts: Date.now() }));
+    }, 2 * 60 * 1000);
   });
 
   mainWindow.on('closed', () => {
@@ -210,21 +299,14 @@ ipcMain.handle('autostart-get', () => ({
 }));
 
 ipcMain.handle('service-start', (_e, service) => {
-  const cfg = loadConfig();
-  if (service === 'backend') {
-    return pm.start('backend', { cwd: cfg.paths.backend, npmScript: cfg.npmScripts?.backend || 'start', env: { PORT: String(cfg.ports?.backend ?? 3000) } });
+  if (!['backend', 'cocina', 'expo', 'facturacion'].includes(service)) {
+    return { ok: false, error: 'unknown_service' };
   }
-  if (service === 'cocina') {
-    return pm.start('cocina', { cwd: cfg.paths.cocina, npmScript: cfg.npmScripts?.cocina || 'start', env: { PORT: String(cfg.ports?.cocina ?? 3001) } });
-  }
-  if (service === 'expo') {
-    return pm.start('expo', { cwd: cfg.paths.mozos, npmScript: cfg.npmScripts?.expo || 'start', env: { PORT: String(cfg.ports?.expoMetro ?? 8081) } });
-  }
-  return { ok: false, error: 'unknown_service' };
+  return startConfigured(service);
 });
 
 ipcMain.handle('service-stop', async (_e, service) => {
-  if (service === 'backend' || service === 'cocina' || service === 'expo') {
+  if (service === 'backend' || service === 'cocina' || service === 'expo' || service === 'facturacion') {
     return pm.stop(service);
   }
   return { ok: false, error: 'unknown_service' };
@@ -693,6 +775,7 @@ ipcMain.handle('repos-local-status', () => {
     backend: repoLocalStatus(cfg.paths?.backend),
     cocina: repoLocalStatus(cfg.paths?.cocina),
     mozos: repoLocalStatus(cfg.paths?.mozos),
+    facturacion: repoLocalStatus(cfg.paths?.facturacion),
   };
 });
 
@@ -711,7 +794,7 @@ ipcMain.handle('git-clone-repo', async (_e, { repoKey, parentDir }) => {
   const urls = cfg.cloneUrls || {};
   const url = urls[repoKey];
   if (!url) return { ok: false, error: 'Sin URL en cloneUrls para ' + repoKey };
-  const folderMap = { backend: FOLDER_BACKEND, cocina: FOLDER_COCINA, mozos: FOLDER_MOZOS };
+  const folderMap = { backend: FOLDER_BACKEND, cocina: FOLDER_COCINA, mozos: FOLDER_MOZOS, facturacion: FOLDER_FACTURACION };
   const folder = folderMap[repoKey];
   if (!folder) return { ok: false, error: 'repoKey inválido' };
   let parent = parentDir || cfg.cloneParentDir;
@@ -754,6 +837,7 @@ ipcMain.handle('repos-clone-all', async (_e, explicitParent) => {
     { key: 'backend', folder: FOLDER_BACKEND },
     { key: 'cocina', folder: FOLDER_COCINA },
     { key: 'mozos', folder: FOLDER_MOZOS },
+    { key: 'facturacion', folder: FOLDER_FACTURACION },
   ];
   const results = [];
   const total = map.length;
@@ -800,7 +884,7 @@ ipcMain.handle('git-check-updates', async (_e, repoKey) => {
 
 ipcMain.handle('npm-install', async (_e, serviceKey) => {
   const cfg = loadConfig();
-  const keyMap = { backend: 'backend', cocina: 'cocina', expo: 'mozos' };
+  const keyMap = { backend: 'backend', cocina: 'cocina', expo: 'mozos', facturacion: 'facturacion' };
   const dir = cfg.paths[keyMap[serviceKey]];
   if (!dir) return { ok: false, error: 'Ruta no configurada para ' + serviceKey };
   const fs = require('fs');
@@ -841,6 +925,7 @@ ipcMain.handle('check-node-modules', async (_e) => {
     backend: { path: cfg.paths.backend, hasModules: false, hasPackageJson: false },
     cocina: { path: cfg.paths.cocina, hasModules: false, hasPackageJson: false },
     expo: { path: cfg.paths.mozos, hasModules: false, hasPackageJson: false },
+    facturacion: { path: cfg.paths.facturacion, hasModules: false, hasPackageJson: false },
   };
   for (const [key, info] of Object.entries(checks)) {
     if (info.path) {

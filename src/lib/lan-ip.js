@@ -48,16 +48,19 @@ function buildServiceUrls(cfg = {}) {
   const host = getLanIPv4();
   const backendPort = Number(cfg.ports?.backend) || 3000;
   const cocinaPort = Number(cfg.ports?.cocina) || 3001;
+  const facturacionPort = Number(cfg.ports?.facturacion) || 5174;
   const backendOrigin = `http://${host}:${backendPort}`;
   return {
     host,
     backendPort,
     cocinaPort,
+    facturacionPort,
     backendOrigin,
     urls: {
       root: `${backendOrigin}/`,
       login: `${backendOrigin}/login`,
       cocina: `http://${host}:${cocinaPort}/`,
+      facturacion: `http://${host}:${facturacionPort}/`,
     },
   };
 }

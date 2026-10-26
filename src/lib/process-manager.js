@@ -4,14 +4,14 @@ const fs = require('fs');
 const path = require('path');
 const treeKill = require('tree-kill');
 
-const SERVICES = ['backend', 'cocina', 'expo'];
+const SERVICES = ['backend', 'cocina', 'facturacion', 'expo'];
 
 class ProcessManager extends EventEmitter {
   constructor() {
     super();
     /** @type {Record<string, import('child_process').ChildProcess | null>} */
-    this.procs = { backend: null, cocina: null, expo: null };
-    this.lastError = { backend: null, cocina: null, expo: null };
+    this.procs = { backend: null, cocina: null, facturacion: null, expo: null };
+    this.lastError = { backend: null, cocina: null, facturacion: null, expo: null };
   }
 
   /**

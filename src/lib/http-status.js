@@ -18,17 +18,20 @@ async function appsStatus(cfg) {
   const backendUrl = `http://127.0.0.1:${cfg.ports.backend}/`;
   const cocinaUrl = `http://127.0.0.1:${cfg.ports.cocina}/`;
   const metroUrl = `http://127.0.0.1:${cfg.ports.expoMetro}/`;
+  const facturacionUrl = `http://127.0.0.1:${cfg.ports.facturacion || 5174}/`;
 
-  const [backend, cocina, expoMetro] = await Promise.all([
+  const [backend, cocina, expoMetro, facturacion] = await Promise.all([
     checkUrl(backendUrl),
     checkUrl(cocinaUrl),
     checkUrl(metroUrl),
+    checkUrl(facturacionUrl),
   ]);
 
   return {
     backend: { ...backend, label: 'Backend (HTTP)' },
     cocina: { ...cocina, label: 'App cocina (HTTP)' },
     expo: { ...expoMetro, label: 'Metro/Expo (puerto configurado)' },
+    facturacion: { ...facturacion, label: 'Facturación (HTTP)' },
   };
 }
 

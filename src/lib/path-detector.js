@@ -5,6 +5,7 @@ const os = require('os');
 const FOLDER_BACKEND = 'Backend-LasGambusinas';
 const FOLDER_COCINA = 'appcocina';
 const FOLDER_MOZOS = 'Las-Gambusinas';
+const FOLDER_FACTURACION = 'Sistema de Facturacion';
 
 function tripletExists(root) {
   if (!root || !fs.existsSync(root)) return false;
@@ -122,6 +123,7 @@ function detectMonorepoRoot(opts = {}) {
       backend: path.join(best.path, FOLDER_BACKEND),
       cocina: path.join(best.path, FOLDER_COCINA),
       mozos: path.join(best.path, FOLDER_MOZOS),
+      facturacion: path.join(best.path, FOLDER_FACTURACION),
     },
     score: bestScore,
   };
@@ -147,4 +149,5 @@ module.exports = {
   FOLDER_BACKEND,
   FOLDER_COCINA,
   FOLDER_MOZOS,
+  FOLDER_FACTURACION,
 };
