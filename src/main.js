@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, Tray, Menu, nativeImage, screen } = require('electron');
 const path = require('path');
 const { loadConfig, saveConfig, loadState, saveState } = require('./lib/config-store');
 const { ProcessManager } = require('./lib/process-manager');
@@ -30,6 +30,9 @@ const MAX_LOG = 600;
 let easChild = null;
 let easLastBuildInfo = null;
 let allowQuitAfterCleanup = false;
+let tray = null;
+let forceQuit = false;
+let toldBackground = false;
 
 function pushLog(entry) {
   logBuffer.push(entry);
@@ -223,7 +226,60 @@ async function runAutoUpdates() {
   }
 }
 
+function appIconImage() {
+  const image = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
+  return image.isEmpty() ? null : image;
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function hideToBackground() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.hide();
+  if (toldBackground || !tray) return;
+  toldBackground = true;
+  tray.displayBalloon({
+    title: 'Las Gambusinas',
+    content: 'Sigue en segundo plano. Clic derecho en el icono para cerrarlo.',
+    iconType: 'info',
+  });
+}
+
+function createTray() {
+  if (tray) return;
+  const base = appIconImage();
+  if (!base) return;
+  const scale = screen.getPrimaryDisplay()?.scaleFactor || 1;
+  const size = Math.max(16, Math.round(16 * scale));
+  tray = new Tray(base.resize({ width: size, height: size }));
+  tray.setToolTip('Las Gambusinas — segundo plano');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Abrir', click: () => showMainWindow() },
+    { type: 'separator' },
+    {
+      label: 'Cerrar',
+      click: () => {
+        forceQuit = true;
+        app.quit();
+      },
+    },
+  ]));
+  tray.on('click', () => showMainWindow());
+  tray.on('double-click', () => showMainWindow());
+  tray.on('balloon-click', () => showMainWindow());
+}
+
 function createWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) return;
+  const icon = appIconImage();
   mainWindow = new BrowserWindow({
     width: 1040,
     height: 800,
@@ -239,6 +295,7 @@ function createWindow() {
     title: 'Las Gambusinas — Launcher',
     frame: true,
     autoHideMenuBar: true,
+    ...(icon ? { icon } : {}),
   });
 
   const rendererIndex = path.join(app.getAppPath(), 'renderer', 'index.html');
@@ -266,6 +323,12 @@ function createWindow() {
     }, 2 * 60 * 1000);
   });
 
+  mainWindow.on('close', (event) => {
+    if (forceQuit || relaunching || allowQuitAfterCleanup) return;
+    event.preventDefault();
+    hideToBackground();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -286,12 +349,30 @@ function syncAutostartShortcut(cfg) {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-});
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.lasgambusinas.launcher');
+}
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  allowQuitAfterCleanup = true;
+  app.quit();
+} else {
+  app.on('second-instance', () => showMainWindow());
+  app.whenReady().then(() => {
+    createTray();
+    createWindow();
+  });
+}
 
 app.on('window-all-closed', () => {
-  app.quit();
+  if (forceQuit || relaunching || allowQuitAfterCleanup) app.quit();
+});
+
+app.on('will-quit', () => {
+  if (!tray) return;
+  tray.destroy();
+  tray = null;
 });
 
 app.on('before-quit', async (e) => {
